@@ -16,6 +16,14 @@ const PROVAS = ['50m', '100m', '200m', '400m', '800m', '1500m'];
 const ESTILOS = ['Livre', 'Costas', 'Peito', 'Borboleta', 'Medley'];
 const MODOS = ['Aula', 'Festival', 'Competição']; 
 
+// Base de dados Mock de Atletas
+const BASE_ATLETAS = [
+  { id: 1, nome: 'Ana Silva', Aniversário: '2010-05-15' },
+  { id: 2, nome: 'Carlos Souza', Aniversário: '2008-02-10' },
+  { id: 3, nome: 'Beatriz Costa', Aniversário: '2012-08-20' },
+  { id: 4, nome: 'Daniel Oliveira', Aniversário: '2009-11-05' },
+];
+
 // Lógica de Categorias CBDA (Baseada na idade na época do registro)
 const calcularCategoria = (dataNascimento, dataRegistro) => {
   if (!dataNascimento || !dataRegistro) return '-';
@@ -69,6 +77,19 @@ export default function App() {
 
   const limparFiltros = () => {
     setFiltros({ nome: '', prova: '', estilo: '', modo: '' });
+  };
+
+  const handleTempoChange = (e) => {
+    const valor = e.target.value.replace(/\D/g, '');
+    if (!valor) {
+      setForm(prev => ({ ...prev, tempo: '' }));
+      return;
+    }
+    const padded = valor.padStart(6, '0').slice(-6);
+    const mm = padded.slice(0, 2);
+    const ss = padded.slice(2, 4);
+    const ms = padded.slice(4, 6);
+    setForm(prev => ({ ...prev, tempo: `${mm}:${ss}.${ms}` }));
   };
 
   const salvarRegistro = (e) => {
@@ -325,16 +346,27 @@ export default function App() {
             <form onSubmit={salvarRegistro} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Atleta</label>
-                <input required type="text" className="w-full p-2 border rounded-lg" value={form.nome} onChange={e => setForm({...form, nome: e.target.value})} />
+                <select 
+                  required 
+                  className="w-full p-2 border rounded-lg bg-white" 
+                  value={form.nome} 
+                  onChange={e => {
+                    const nomeSelecionado = e.target.value;
+                    const atleta = BASE_ATLETAS.find(a => a.nome === nomeSelecionado);
+                    // Usando a variável dataAniversário conforme solicitado, mapeando da coluna Aniversário
+                    const dataAniversário = atleta ? atleta.Aniversário : '';
+                    setForm({...form, nome: nomeSelecionado, dataNascimento: dataAniversário});
+                  }}
+                >
+                  <option value="">Selecione um atleta</option>
+                  {BASE_ATLETAS.map(atleta => (
+                    <option key={atleta.id} value={atleta.nome}>{atleta.nome}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data de Nascimento</label>
-                <input required type="date" className="w-full p-2 border rounded-lg" value={form.dataNascimento} onChange={e => setForm({...form, dataNascimento: e.target.value})} />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Registro (Retroativo)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Registro</label>
                 <input required type="date" className="w-full p-2 border rounded-lg" value={form.dataRegistro} onChange={e => setForm({...form, dataRegistro: e.target.value})} />
               </div>
 
@@ -345,10 +377,10 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prova</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.prova} onChange={e => setForm({...form, prova: e.target.value})}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Modo/Evento</label>
+                <select required className="w-full p-2 border rounded-lg bg-white" value={form.modo} onChange={e => setForm({...form, modo: e.target.value})}>
                   <option value="">Selecione</option>
-                  {PROVAS.map(p => <option key={p} value={p}>{p}</option>)}
+                  {MODOS.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
 
@@ -361,16 +393,16 @@ export default function App() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
-                <input required type="text" placeholder="00:00.00" className="w-full p-2 border rounded-lg" value={form.tempo} onChange={e => setForm({...form, tempo: e.target.value})} />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prova</label>
+                <select required className="w-full p-2 border rounded-lg bg-white" value={form.prova} onChange={e => setForm({...form, prova: e.target.value})}>
+                  <option value="">Selecione</option>
+                  {PROVAS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modo</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.modo} onChange={e => setForm({...form, modo: e.target.value})}>
-                  <option value="">Selecione</option>
-                  {MODOS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
+                <input required type="text" placeholder="00:00.00" className="w-full p-2 border rounded-lg" value={form.tempo} onChange={handleTempoChange} />
               </div>
 
               <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t">
