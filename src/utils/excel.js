@@ -8,8 +8,8 @@ import * as ExcelJS from 'exceljs';
 function normalizeHeader(h) {
   const lower = h.toLowerCase().trim();
   
-  // Nome/Atleta
-  if (lower.includes('nome') || lower.includes('atleta')) return 'nome';
+  // Nome/Atleta/Aluno
+  if (lower.includes('nome') || lower.includes('atleta') || lower.includes('aluno')) return 'nome';
   
   // Data de Nascimento / Aniversário
   if (lower.includes('nascimento') || lower.includes('aniversário') || lower.includes('aniversario')) {
@@ -136,10 +136,14 @@ function parseTempoCell(val) {
       console.log('parseTempoCell - número < 1 convertido para:', result);
       return result;
     }
-    // Se é um número maior, pode ser apenas segundos
-    if (val < 10000) {
-      const result = formatSecondsToTempo(val);
-      console.log('parseTempoCell - número convertido para:', result);
+    // Se é um número maior, tratar como formato MMSSCC (ex: 003633 = 00:36.33, 13545 = 01:35.45)
+    if (val >= 1 && val < 1000000) {
+      const numStr = String(Math.floor(val)).padStart(6, '0');
+      const mm = numStr.substring(0, 2);
+      const ss = numStr.substring(2, 4);
+      const cc = numStr.substring(4, 6);
+      const result = `${mm}:${ss}.${cc}`;
+      console.log('parseTempoCell - número MMSSCC convertido para:', result);
       return result;
     }
   }
@@ -158,19 +162,22 @@ function parseTempoCell(val) {
       return result;
     }
     
+    // Formato MMSSCC como string (ex: "003633" = 00:36.33, "13545" = 01:35.45)
+    if (trimmed.match(/^\d{4,6}$/)) {
+      const numStr = trimmed.padStart(6, '0');
+      const mm = numStr.substring(0, 2);
+      const ss = numStr.substring(2, 4);
+      const cc = numStr.substring(4, 6);
+      const result = `${mm}:${ss}.${cc}`;
+      console.log('parseTempoCell - string MMSSCC convertido para:', result);
+      return result;
+    }
+    
     // Formato "ss.S" ou "ss.SS" (apenas segundos)
     if (trimmed.match(/^\d{1,3}\.\d{1,2}$/)) {
       const seconds = parseFloat(trimmed);
       const result = formatSecondsToTempo(seconds);
       console.log('parseTempoCell - string ss.SS convertido para:', result);
-      return result;
-    }
-    
-    // Formato "ss" (apenas segundos inteiros)
-    if (trimmed.match(/^\d{1,3}$/)) {
-      const seconds = parseInt(trimmed, 10);
-      const result = formatSecondsToTempo(seconds);
-      console.log('parseTempoCell - string ss convertido para:', result);
       return result;
     }
     
