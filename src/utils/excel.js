@@ -197,12 +197,28 @@ export async function parseExcelFile(file) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     
-    // Pega a primeira planilha
-    const worksheet = workbook.worksheets[0];
+    // Procura pela aba "DB_registros" especificamente
+    let worksheet = workbook.getWorksheet('DB_registros');
+    
+    // Se não encontrar DB_registros, tenta variações comuns
+    if (!worksheet) {
+      worksheet = workbook.getWorksheet('DB_Registros') || 
+                  workbook.getWorksheet('db_registros') ||
+                  workbook.getWorksheet('Registros') ||
+                  workbook.getWorksheet('registros');
+    }
+    
+    // Se ainda não encontrou, usa a primeira planilha
+    if (!worksheet) {
+      console.warn('Aba "DB_registros" não encontrada, usando primeira planilha');
+      worksheet = workbook.worksheets[0];
+    }
     
     if (!worksheet) {
-      return [];
+      throw new Error('Nenhuma planilha encontrada no arquivo');
     }
+    
+    console.log('Usando planilha:', worksheet.name);
     
     // Lê os cabeçalhos da primeira linha
     const headerRow = worksheet.getRow(1);
