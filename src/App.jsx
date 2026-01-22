@@ -251,7 +251,7 @@ export default function App() {
         {/* Barra de Filtros */}
         <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-end border border-gray-100">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Buscar Atleta</label>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Buscar Aluno</label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
               <input 
@@ -303,7 +303,7 @@ export default function App() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 {[
-                  { key: 'nome', label: 'Atleta' },
+                  { key: 'nome', label: 'Aluno' },
                   { key: 'dataRegistro', label: 'Data Reg.' },
                   { key: 'categoria', label: 'Categoria (Histórica)' },
                   { key: 'prova', label: 'Prova' },
@@ -399,7 +399,7 @@ export default function App() {
             
             <form onSubmit={salvarRegistro} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Atleta</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Aluno</label>
                 <select 
                   required 
                   className="w-full p-2 border rounded-lg bg-white" 
