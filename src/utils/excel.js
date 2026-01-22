@@ -197,12 +197,16 @@ export async function parseExcelFile(file) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     
-    // Procura pela aba "DB_registros" especificamente
-    let worksheet = workbook.getWorksheet('DB_registros');
+    // Log de todas as abas disponíveis para debug
+    console.log('Abas disponíveis no arquivo:', workbook.worksheets.map(ws => ws.name));
     
-    // Se não encontrar DB_registros, tenta variações comuns
+    // Procura pela aba "DBregistros" ou "DB_registros" especificamente
+    let worksheet = workbook.getWorksheet('DBregistros');
+    
+    // Se não encontrar, tenta variações comuns
     if (!worksheet) {
-      worksheet = workbook.getWorksheet('DB_Registros') || 
+      worksheet = workbook.getWorksheet('DB_registros') || 
+                  workbook.getWorksheet('DB_Registros') ||
                   workbook.getWorksheet('db_registros') ||
                   workbook.getWorksheet('Registros') ||
                   workbook.getWorksheet('registros');
@@ -210,7 +214,7 @@ export async function parseExcelFile(file) {
     
     // Se ainda não encontrou, usa a primeira planilha
     if (!worksheet) {
-      console.warn('Aba "DB_registros" não encontrada, usando primeira planilha');
+      console.warn('Aba "DBregistros" ou "DB_registros" não encontrada, usando primeira planilha');
       worksheet = workbook.worksheets[0];
     }
     
