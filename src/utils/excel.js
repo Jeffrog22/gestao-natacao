@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 /**
  * Normaliza cabeçalhos de colunas para aceitar variações comuns
@@ -102,11 +102,24 @@ function formatSecondsToTempo(seconds) {
 
 /**
  * Parseia célula de tempo que pode estar em vários formatos
- * @param {number|string} val - Valor da célula de tempo
+ * @param {number|string|Date} val - Valor da célula de tempo
  * @returns {string} - Tempo no formato mm:ss.SS
  */
 function parseTempoCell(val) {
   if (!val && val !== 0) return '';
+  
+  // ExcelJS retorna Date para valores de tempo
+  if (val instanceof Date) {
+    // Extrair horas, minutos, segundos e milissegundos
+    const hours = val.getUTCHours();
+    const minutes = val.getUTCMinutes();
+    const seconds = val.getUTCSeconds();
+    const milliseconds = val.getUTCMilliseconds();
+    
+    // Converter tudo para segundos totais
+    const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
+    return formatSecondsToTempo(totalSeconds);
+  }
   
   // Se é número (fração de dia do Excel: 0.0003 = 26 segundos)
   if (typeof val === 'number') {
@@ -161,71 +174,75 @@ function parseTempoCell(val) {
  * @returns {Promise<Array>} - Array de registros { nome, dataNascimento, dataRegistro, tempo, prova, estilo, modo }
  */
 export async function parseExcelFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
+  try {
+    const arrayBuffer = await file.arrayBuffer();
     
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Pega a primeira planilha
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Converte para JSON mantendo valores brutos (números, datas)
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-          raw: true,
-          defval: ''
-        });
-        
-        if (jsonData.length === 0) {
-          resolve([]);
-          return;
-        }
-        
-        // Identifica os índices das colunas normalizadas
-        const headers = Object.keys(jsonData[0]);
-        const colMap = {};
-        
-        headers.forEach(h => {
-          const normalized = normalizeHeader(h);
-          colMap[normalized] = h;
-        });
-        
-        // Processa cada linha
-        const registros = jsonData
-          .map(row => {
-            const nome = row[colMap.nome] || '';
-            const tempo = parseTempoCell(row[colMap.tempo]);
-            
-            // Filtrar linhas vazias (sem nome e sem tempo)
-            if (!nome.trim() && !tempo) {
-              return null;
-            }
-            
-            return {
-              nome: nome.trim(),
-              dataNascimento: excelDateToISO(row[colMap.dataNascimento]),
-              dataRegistro: excelDateToISO(row[colMap.dataRegistro]),
-              tempo: tempo,
-              prova: row[colMap.prova] || '',
-              estilo: row[colMap.estilo] || '',
-              modo: row[colMap.modo] || ''
-            };
-          })
-          .filter(r => r !== null); // Remove linhas vazias
-        
-        resolve(registros);
-      } catch (error) {
-        reject(new Error(`Erro ao processar arquivo Excel: ${error.message}`));
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
+    
+    // Pega a primeira planilha
+    const worksheet = workbook.worksheets[0];
+    
+    if (!worksheet) {
+      return [];
+    }
+    
+    // Lê os cabeçalhos da primeira linha
+    const headerRow = worksheet.getRow(1);
+    const headers = [];
+    const colMap = {};
+    
+    headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      const headerValue = cell.value ? String(cell.value).trim() : '';
+      if (headerValue) {
+        const normalized = normalizeHeader(headerValue);
+        colMap[normalized] = colNumber;
+        headers.push(headerValue);
       }
-    };
+    });
     
-    reader.onerror = () => {
-      reject(new Error('Erro ao ler arquivo'));
-    };
+    if (headers.length === 0) {
+      return [];
+    }
     
-    reader.readAsArrayBuffer(file);
-  });
+    // Processa cada linha (começando da linha 2)
+    const registros = [];
+    
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      // Pula a linha de cabeçalho
+      if (rowNumber === 1) return;
+      
+      const nome = row.getCell(colMap.nome || 1).value;
+      const nomeStr = nome ? String(nome).trim() : '';
+      
+      const tempoVal = row.getCell(colMap.tempo || 4).value;
+      const tempo = parseTempoCell(tempoVal);
+      
+      // Filtrar linhas vazias (sem nome e sem tempo)
+      if (!nomeStr && !tempo) {
+        return;
+      }
+      
+      const dataNascimentoVal = row.getCell(colMap.dataNascimento || 2).value;
+      const dataRegistroVal = row.getCell(colMap.dataRegistro || 3).value;
+      const provaVal = row.getCell(colMap.prova || 5).value;
+      const estiloVal = row.getCell(colMap.estilo || 6).value;
+      const modoVal = row.getCell(colMap.modo || 7).value;
+      
+      registros.push({
+        nome: nomeStr,
+        dataNascimento: excelDateToISO(dataNascimentoVal),
+        dataRegistro: excelDateToISO(dataRegistroVal),
+        tempo: tempo,
+        prova: provaVal ? String(provaVal).trim() : '',
+        estilo: estiloVal ? String(estiloVal).trim() : '',
+        modo: modoVal ? String(modoVal).trim() : ''
+      });
+    });
+    
+    return registros;
+  } catch (error) {
+    throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
+  }
 }
+
