@@ -207,7 +207,53 @@ export async function parseExcelFile(file) {
     // Log de todas as abas disponíveis para debug
     console.log('Abas disponíveis no arquivo:', workbook.worksheets.map(ws => ws.name));
     
-    // Procura pela aba "DBregistros" ou "DB_registros" especificamente
+    // PASSO 1: Ler a aba DBalunos para criar lookup de alunos
+    let alunosWorksheet = workbook.getWorksheet('DBalunos') ||
+                          workbook.getWorksheet('DBaluno') ||
+                          workbook.getWorksheet('DB_alunos') ||
+                          workbook.getWorksheet('DB_Alunos') ||
+                          workbook.getWorksheet('Alunos');
+    
+    const alunosMap = new Map(); // Map<nome, {dataNascimento, categoria}>
+    
+    if (alunosWorksheet) {
+      console.log('Lendo aba de alunos:', alunosWorksheet.name);
+      
+      // Lê os cabeçalhos da aba de alunos
+      const alunoHeaderRow = alunosWorksheet.getRow(1);
+      const alunoColMap = {};
+      
+      alunoHeaderRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const headerValue = cell.value ? String(cell.value).trim() : '';
+        if (headerValue) {
+          const normalized = normalizeHeader(headerValue);
+          alunoColMap[normalized] = colNumber;
+        }
+      });
+      
+      // Lê os dados dos alunos
+      alunosWorksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+        if (rowNumber === 1) return; // Pula cabeçalho
+        
+        const nomeVal = row.getCell(alunoColMap.nome || 1).value;
+        const nomeStr = nomeVal ? String(nomeVal).trim() : '';
+        
+        if (nomeStr) {
+          const dataNascimentoVal = row.getCell(alunoColMap.dataNascimento || 2).value;
+          const dataNascimento = excelDateToISO(dataNascimentoVal);
+          
+          alunosMap.set(nomeStr, {
+            dataNascimento: dataNascimento
+          });
+        }
+      });
+      
+      console.log(`Carregados ${alunosMap.size} alunos da aba DBalunos`);
+    } else {
+      console.warn('Aba DBalunos não encontrada - categoria não será preenchida automaticamente');
+    }
+    
+    // PASSO 2: Procura pela aba "DBregistros" ou "DB_registros" especificamente
     let worksheet = workbook.getWorksheet('DBregistros');
     
     // Se não encontrar, tenta variações comuns
@@ -229,7 +275,7 @@ export async function parseExcelFile(file) {
       throw new Error('Nenhuma planilha encontrada no arquivo');
     }
     
-    console.log('Usando planilha:', worksheet.name);
+    console.log('Usando planilha de registros:', worksheet.name);
     
     // Lê os cabeçalhos da primeira linha
     const headerRow = worksheet.getRow(1);
@@ -275,9 +321,19 @@ export async function parseExcelFile(file) {
       const estiloVal = row.getCell(colMap.estilo || 6).value;
       const modoVal = row.getCell(colMap.modo || 7).value;
       
+      // Tenta pegar data de nascimento da linha atual
+      let dataNascimento = excelDateToISO(dataNascimentoVal);
+      
+      // Se não tiver data de nascimento na linha, busca na aba DBalunos
+      if (!dataNascimento && nomeStr && alunosMap.has(nomeStr)) {
+        const alunoData = alunosMap.get(nomeStr);
+        dataNascimento = alunoData.dataNascimento;
+        console.log(`Linha ${rowNumber} - Data de nascimento buscada de DBalunos para ${nomeStr}:`, dataNascimento);
+      }
+      
       registros.push({
         nome: nomeStr,
-        dataNascimento: excelDateToISO(dataNascimentoVal),
+        dataNascimento: dataNascimento,
         dataRegistro: excelDateToISO(dataRegistroVal),
         tempo: tempo,
         prova: provaVal ? String(provaVal).trim() : '',
