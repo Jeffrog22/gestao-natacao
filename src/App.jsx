@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Trash2, 
   RefreshCcw, 
@@ -7,8 +7,10 @@ import {
   ArrowDown, 
   Plus, 
   Edit2, 
-  X 
+  X,
+  FileUp
 } from 'lucide-react';
+import { parseExcelFile } from './utils/excel';
 
 // --- Configurações e Constantes ---
 
@@ -66,7 +68,44 @@ export default function App() {
     nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: ''
   });
 
+  // Ref para input de arquivo
+  const fileInputRef = useRef(null);
+
   // --- Lógica de Negócio e Manipuladores ---
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const registrosImportados = await parseExcelFile(file);
+      
+      if (registrosImportados.length === 0) {
+        alert('Nenhum registro válido encontrado no arquivo.');
+        return;
+      }
+
+      // Atribuir IDs únicos aos registros importados
+      const registrosComIds = registrosImportados.map((reg, idx) => ({
+        ...reg,
+        id: Date.now() + idx
+      }));
+
+      // Adicionar aos registros existentes
+      setRegistros(prev => [...prev, ...registrosComIds]);
+      
+      alert(`${registrosComIds.length} registro(s) importado(s) com sucesso!`);
+    } catch (error) {
+      alert(`Erro ao importar arquivo: ${error.message}`);
+    } finally {
+      // Limpar o input para permitir reimportar o mesmo arquivo
+      e.target.value = '';
+    }
+  };
 
   const handleSort = (campo) => {
     setOrdenacao(prev => ({
@@ -170,12 +209,27 @@ export default function App() {
             <h1 className="text-3xl font-bold text-blue-900">Gestão de Tempos de Natação</h1>
             <p className="text-gray-500">Acompanhamento histórico e evolução de atletas</p>
           </div>
-          <button 
-            onClick={() => setModalAberto(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
-          >
-            <Plus size={20} /> Novo Registro
-          </button>
+          <div className="flex gap-3">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".xlsx,.xls"
+              style={{ display: 'none' }}
+            />
+            <button 
+              onClick={handleImportClick}
+              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <FileUp size={20} /> Importar XLSX
+            </button>
+            <button 
+              onClick={() => setModalAberto(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+            >
+              <Plus size={20} /> Novo Registro
+            </button>
+          </div>
         </header>
 
         {/* Abas de Navegação */}
