@@ -41,12 +41,20 @@ function normalizeHeader(h) {
 }
 
 /**
- * Converte data do Excel (número serial ou string) para formato ISO (YYYY-MM-DD)
- * @param {number|string} excelVal - Valor da data
+ * Converte data do Excel (número serial ou string ou Date) para formato ISO (YYYY-MM-DD)
+ * @param {number|string|Date} excelVal - Valor da data
  * @returns {string} - Data no formato YYYY-MM-DD
  */
 function excelDateToISO(excelVal) {
   if (!excelVal) return '';
+  
+  // Se é um objeto Date do JavaScript
+  if (excelVal instanceof Date) {
+    const year = excelVal.getFullYear();
+    const month = String(excelVal.getMonth() + 1).padStart(2, '0');
+    const day = String(excelVal.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
   
   // Se já é uma string no formato esperado
   if (typeof excelVal === 'string') {
@@ -98,13 +106,20 @@ function formatSecondsToTempo(seconds) {
  * @returns {string} - Tempo no formato mm:ss.SS
  */
 function parseTempoCell(val) {
-  if (!val) return '';
+  if (!val && val !== 0) return '';
   
   // Se é número (fração de dia do Excel: 0.0003 = 26 segundos)
   if (typeof val === 'number') {
     // Excel armazena tempo como fração de dia (1 dia = 86400 segundos)
-    const seconds = val * 86400;
-    return formatSecondsToTempo(seconds);
+    // Se o número é muito pequeno (< 1), é provavelmente um tempo
+    if (val < 1) {
+      const seconds = val * 86400;
+      return formatSecondsToTempo(seconds);
+    }
+    // Se é um número maior, pode ser apenas segundos
+    if (val < 10000) {
+      return formatSecondsToTempo(val);
+    }
   }
   
   // Se é string
@@ -158,9 +173,9 @@ export async function parseExcelFile(file) {
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
-        // Converte para JSON mantendo valores brutos
+        // Converte para JSON mantendo valores brutos (números, datas)
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
-          raw: false,
+          raw: true,
           defval: ''
         });
         
