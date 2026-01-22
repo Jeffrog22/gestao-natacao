@@ -108,6 +108,9 @@ function formatSecondsToTempo(seconds) {
 function parseTempoCell(val) {
   if (!val && val !== 0) return '';
   
+  // Log para debug (remover em produção se necessário)
+  console.log('parseTempoCell - tipo:', typeof val, 'valor:', val);
+  
   // ExcelJS retorna Date para valores de tempo
   if (val instanceof Date) {
     // Extrair horas, minutos, segundos e milissegundos
@@ -118,7 +121,9 @@ function parseTempoCell(val) {
     
     // Converter tudo para segundos totais
     const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
-    return formatSecondsToTempo(totalSeconds);
+    const result = formatSecondsToTempo(totalSeconds);
+    console.log('parseTempoCell - Date convertido para:', result);
+    return result;
   }
   
   // Se é número (fração de dia do Excel: 0.0003 = 26 segundos)
@@ -127,11 +132,15 @@ function parseTempoCell(val) {
     // Se o número é muito pequeno (< 1), é provavelmente um tempo
     if (val < 1) {
       const seconds = val * 86400;
-      return formatSecondsToTempo(seconds);
+      const result = formatSecondsToTempo(seconds);
+      console.log('parseTempoCell - número < 1 convertido para:', result);
+      return result;
     }
     // Se é um número maior, pode ser apenas segundos
     if (val < 10000) {
-      return formatSecondsToTempo(val);
+      const result = formatSecondsToTempo(val);
+      console.log('parseTempoCell - número convertido para:', result);
+      return result;
     }
   }
   
@@ -144,27 +153,35 @@ function parseTempoCell(val) {
       const parts = trimmed.split(':');
       const mm = parts[0].padStart(2, '0');
       const [ss, cs] = parts[1].split('.');
-      return `${mm}:${ss}.${cs.padStart(2, '0')}`;
+      const result = `${mm}:${ss}.${cs.padStart(2, '0')}`;
+      console.log('parseTempoCell - string mm:ss.SS convertido para:', result);
+      return result;
     }
     
     // Formato "ss.S" ou "ss.SS" (apenas segundos)
     if (trimmed.match(/^\d{1,3}\.\d{1,2}$/)) {
       const seconds = parseFloat(trimmed);
-      return formatSecondsToTempo(seconds);
+      const result = formatSecondsToTempo(seconds);
+      console.log('parseTempoCell - string ss.SS convertido para:', result);
+      return result;
     }
     
     // Formato "ss" (apenas segundos inteiros)
     if (trimmed.match(/^\d{1,3}$/)) {
       const seconds = parseInt(trimmed, 10);
-      return formatSecondsToTempo(seconds);
+      const result = formatSecondsToTempo(seconds);
+      console.log('parseTempoCell - string ss convertido para:', result);
+      return result;
     }
     
     // Se já está no formato correto
     if (trimmed.match(/^\d{2}:\d{2}\.\d{2}$/)) {
+      console.log('parseTempoCell - já no formato correto:', trimmed);
       return trimmed;
     }
   }
   
+  console.log('parseTempoCell - não conseguiu parsear, retornando vazio');
   return '';
 }
 
@@ -216,7 +233,9 @@ export async function parseExcelFile(file) {
       const nomeStr = nome ? String(nome).trim() : '';
       
       const tempoVal = row.getCell(colMap.tempo || 4).value;
+      console.log(`Linha ${rowNumber} - Nome: ${nomeStr}, Tempo raw:`, tempoVal);
       const tempo = parseTempoCell(tempoVal);
+      console.log(`Linha ${rowNumber} - Tempo processado:`, tempo);
       
       // Filtrar linhas vazias (sem nome e sem tempo)
       if (!nomeStr && !tempo) {
