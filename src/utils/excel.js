@@ -17,7 +17,7 @@ function normalizeHeader(h) {
   }
   
   // Data do Registro
-  if (lower.includes('registro') || lower.includes('data') && lower.includes('reg')) {
+  if (lower.includes('registro') || (lower.includes('data') && lower.includes('reg'))) {
     return 'dataRegistro';
   }
   
@@ -92,10 +92,10 @@ function excelDateToISO(excelVal) {
  * @returns {string} - Tempo no formato mm:ss.SS
  */
 function formatSecondsToTempo(seconds) {
-  const totalMs = Math.round(seconds * 100);
-  const minutes = Math.floor(totalMs / 6000);
-  const secs = Math.floor((totalMs % 6000) / 100);
-  const centisecs = totalMs % 100;
+  const totalCentiseconds = Math.round(seconds * 100);
+  const minutes = Math.floor(totalCentiseconds / 6000);
+  const secs = Math.floor((totalCentiseconds % 6000) / 100);
+  const centisecs = totalCentiseconds % 100;
   
   return `${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(centisecs).padStart(2, '0')}`;
 }
