@@ -36,6 +36,13 @@ function normalizeHeader(h) {
   if (lower.includes('modo') || lower.includes('evento') || lower.includes('tipo')) {
     return 'modo';
   }
+
+  // Código / ID / Matrícula / NC
+  if (lower.includes('codigo') || lower.includes('código') || lower === 'id' || lower.includes('matr') || lower.includes('nc')) return 'codigo';
+  // Gênero
+  if (lower.includes('genero') || lower.includes('gênero')) return 'genero';
+  // Categoria
+  if (lower.includes('categoria') || lower === 'cat') return 'categoria';
   
   return h; // Retorna original se não reconhecer
 }
@@ -46,8 +53,17 @@ function normalizeHeader(h) {
  * @returns {string} - Data no formato YYYY-MM-DD
  */
 function excelDateToISO(excelVal) {
-  if (!excelVal) return '';
-  
+  if (!excelVal && excelVal !== 0) return '';
+
+  // Se for objeto complexo do ExcelJS, tentar extrair o valor interno
+  if (excelVal && typeof excelVal === 'object') {
+    if (excelVal.text) excelVal = excelVal.text;
+    else if (excelVal.result !== undefined) excelVal = excelVal.result;
+    else if (excelVal.richText && Array.isArray(excelVal.richText)) {
+      excelVal = excelVal.richText.map(t => t.text || '').join('');
+    }
+  }
+
   // Se é um objeto Date do JavaScript
   if (excelVal instanceof Date) {
     const year = excelVal.getFullYear();
@@ -55,7 +71,7 @@ function excelDateToISO(excelVal) {
     const day = String(excelVal.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   }
-  
+
   // Se já é uma string no formato esperado
   if (typeof excelVal === 'string') {
     // Tenta converter DD/MM/YYYY para YYYY-MM-DD
@@ -69,23 +85,81 @@ function excelDateToISO(excelVal) {
       return excelVal;
     }
   }
-  
+
   // Se é número serial do Excel (dias desde 1900-01-01)
   if (typeof excelVal === 'number') {
     // Excel serial date: dias desde 30/12/1899 (com bug do ano 1900)
     const excelEpoch = new Date(1899, 11, 30);
     const date = new Date(excelEpoch.getTime() + excelVal * 86400000);
-    
+
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    
+
     return `${year}-${month}-${day}`;
   }
-  
+
   return '';
 }
 
+/**
+ * Extrai um valor simples de células complexas do ExcelJS
+ * Retorna Date/number/string quando possível.
+ */
+function flattenCellValue(val) {
+  if (val === null || val === undefined) return '';
+  if (val instanceof Date) return val;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    if (val.text) return val.text;
+    if (val.result !== undefined) return val.result;
+    if (val.richText && Array.isArray(val.richText)) return val.richText.map(t => t.text || '').join('');
+    if (val.hyperlink && val.text) return val.text;
+    return '';
+  }
+  return '';
+}
+
+function normalizeName(name) {
+  if (!name) return '';
+  try {
+    return String(name)
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/\s+/g, ' ');
+  } catch (e) {
+    return String(name).trim().toLowerCase();
+  }
+}
+
+function normalizeGenero(val) {
+  if (val === null || val === undefined) return '';
+  const v = String(val).trim();
+  if (!v) return '';
+  const s = v.toLowerCase();
+  if (s.startsWith('m')) return 'M';
+  if (s.startsWith('f')) return 'F';
+  if (s.startsWith('o') || s.startsWith('x')) return 'O';
+  return v.charAt(0).toUpperCase();
+}
+
+// Calcula categoria CBDA com mesma lógica usada na UI (idade no ano do registro)
+function calcularCategoria(dataNascimento, dataRegistro) {
+  if (!dataNascimento || !dataRegistro) return '-';
+  const nasc = new Date(dataNascimento);
+  const reg = new Date(dataRegistro);
+  const idadeNaEpoca = reg.getFullYear() - nasc.getFullYear();
+
+  if (idadeNaEpoca <= 8) return 'Mirim';
+  if (idadeNaEpoca <= 10) return 'Petiz';
+  if (idadeNaEpoca <= 12) return 'Infantil';
+  if (idadeNaEpoca <= 14) return 'Juvenil';
+  if (idadeNaEpoca <= 16) return 'Junior';
+  return 'Sênior';
+}
 /**
  * Converte segundos (número decimal) para formato mm:ss.SS
  * @param {number} seconds - Tempo em segundos
@@ -230,6 +304,59 @@ export async function parseExcelFile(file) {
     }
     
     console.log('Usando planilha:', worksheet.name);
+
+    // --- Tentar carregar DBalunos para mapear código/nome -> dataNascimento ---
+    const alunosSheetNames = ['DBalunos','DB_alunos','DB_Alunos','db_alunos','Alunos','alunos','DBAlunos'];
+    let alunosSheet = null;
+    for (const n of alunosSheetNames) {
+      const s = workbook.getWorksheet(n);
+      if (s) { alunosSheet = s; break; }
+    }
+
+    const alunosByCode = {};
+    const alunosByName = {};
+
+    if (alunosSheet) {
+      try {
+        const headerRowA = alunosSheet.getRow(1);
+        const colMapA = {};
+        headerRowA.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          const headerValue = cell.value ? String(cell.value).trim() : '';
+          if (headerValue) {
+            const normalized = normalizeHeader(headerValue);
+            colMapA[normalized] = colNumber;
+          }
+        });
+
+        alunosSheet.eachRow({ includeEmpty: false }, (row, rn) => {
+          if (rn === 1) return;
+          const codeVal = flattenCellValue(row.getCell(colMapA.codigo || 1).value);
+          const nameVal = flattenCellValue(row.getCell(colMapA.nome || 2).value);
+          const birthVal = flattenCellValue(row.getCell(colMapA.dataNascimento || 3).value);
+          const catVal = flattenCellValue(row.getCell(colMapA.categoria || 4).value);
+          const genderVal = flattenCellValue(row.getCell(colMapA.genero || 5).value);
+          const birthIso = excelDateToISO(birthVal);
+
+          const info = { birth: birthIso || '', categoria: catVal ? String(catVal).trim() : '', genero: normalizeGenero(genderVal) };
+
+          if (codeVal) {
+            const key = String(codeVal).trim();
+            alunosByCode[key] = info;
+            alunosByCode[key.toUpperCase()] = info;
+            alunosByCode[key.toLowerCase()] = info;
+          }
+          if (nameVal) {
+            alunosByName[normalizeName(nameVal)] = info;
+          }
+        });
+
+        console.log('Mapeamento DBalunos carregado: codes=', Object.keys(alunosByCode).length, 'names=', Object.keys(alunosByName).length);
+      } catch (err) {
+        console.warn('Falha ao processar DBalunos:', err.message);
+      }
+    } else {
+      console.log('Aba DBalunos não encontrada — fallback por nome estará indisponível');
+    }
     
     // Lê os cabeçalhos da primeira linha
     const headerRow = worksheet.getRow(1);
@@ -255,35 +382,101 @@ export async function parseExcelFile(file) {
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       // Pula a linha de cabeçalho
       if (rowNumber === 1) return;
-      
-      const nome = row.getCell(colMap.nome || 1).value;
-      const nomeStr = nome ? String(nome).trim() : '';
-      
-      const tempoVal = row.getCell(colMap.tempo || 4).value;
+      const nomeRaw = row.getCell(colMap.nome || 1).value;
+      const nomeStr = String(flattenCellValue(nomeRaw)).trim();
+
+      const tempoRaw = row.getCell(colMap.tempo || 4).value;
+      const tempoVal = flattenCellValue(tempoRaw);
       console.log(`Linha ${rowNumber} - Nome: ${nomeStr}, Tempo raw:`, tempoVal);
       const tempo = parseTempoCell(tempoVal);
       console.log(`Linha ${rowNumber} - Tempo processado:`, tempo);
-      
+
       // Filtrar linhas vazias (sem nome e sem tempo)
       if (!nomeStr && !tempo) {
         return;
       }
-      
-      const dataNascimentoVal = row.getCell(colMap.dataNascimento || 2).value;
-      const dataRegistroVal = row.getCell(colMap.dataRegistro || 3).value;
-      const provaVal = row.getCell(colMap.prova || 5).value;
-      const estiloVal = row.getCell(colMap.estilo || 6).value;
-      const modoVal = row.getCell(colMap.modo || 7).value;
-      
-      registros.push({
+
+      const dataNascimentoVal = flattenCellValue(row.getCell(colMap.dataNascimento || 2).value);
+      const dataRegistroVal = flattenCellValue(row.getCell(colMap.dataRegistro || 3).value);
+      const provaVal = flattenCellValue(row.getCell(colMap.prova || 5).value);
+      const estiloVal = flattenCellValue(row.getCell(colMap.estilo || 6).value);
+      const modoVal = flattenCellValue(row.getCell(colMap.modo || 7).value);
+
+      // Normaliza datas vindas da planilha
+      let dataNiso = excelDateToISO(dataNascimentoVal);
+      const dataRiso = excelDateToISO(dataRegistroVal);
+
+      // Se não houver data de nascimento definida, tentar lookup em DBalunos por código ou nome
+      if ((!dataNiso || dataNiso === '') && dataNascimentoVal) {
+        const cand = String(dataNascimentoVal).trim();
+        // Se parece com código (ex: NC-0002, ID-0003) tentar por código
+        if (cand && (cand.match(/^[A-Za-z]{1,3}-?\d+/) || cand.toUpperCase().startsWith('NC') || cand.toUpperCase().startsWith('ID'))) {
+          const found = alunosByCode[cand] || alunosByCode[cand.toUpperCase()] || alunosByCode[cand.toLowerCase()];
+          if (found && found.birth) {
+            dataNiso = found.birth;
+            console.log(`Fallback: preenchi dataNascimento por código ${cand} -> ${dataNiso}`);
+          }
+          // Também tentar preencher categoria e gênero a partir do DBalunos
+          var categoriaFromAluno = found && found.categoria ? found.categoria : undefined;
+          var generoFromAluno = found && found.genero ? found.genero : undefined;
+        }
+      }
+
+      if ((!dataNiso || dataNiso === '') && nomeStr) {
+        const nameKey = normalizeName(nomeStr);
+        const foundByName = alunosByName[nameKey];
+        if (foundByName && foundByName.birth) {
+          dataNiso = foundByName.birth;
+          console.log(`Fallback: preenchi dataNascimento por nome ${nomeStr} -> ${dataNiso}`);
+        }
+        if (foundByName && foundByName.categoria) {
+          categoriaFromAluno = foundByName.categoria;
+        }
+        if (foundByName && foundByName.genero) {
+          generoFromAluno = foundByName.genero;
+        }
+      }
+
+      // Se não foi preenchido categoria a partir do DBalunos, checar se já havia valor na célula de registros (em caso de coluna já existir)
+      let categoriaFromCell = '';
+      try {
+        const rawCat = flattenCellValue(row.getCell(colMap.categoria || 8).value);
+        categoriaFromCell = rawCat ? String(rawCat).trim() : '';
+      } catch (e) {
+        categoriaFromCell = '';
+      }
+
+      // Tentar ler gênero a partir da célula de registros
+      let generoFromCell = '';
+      try {
+        const rawGen = flattenCellValue(row.getCell(colMap.genero || 9).value);
+        generoFromCell = rawGen ? normalizeGenero(rawGen) : '';
+      } catch (e) {
+        generoFromCell = '';
+      }
+
+      const categoriaCalc = calcularCategoria(dataNiso, dataRiso);
+      // Preferir: 1) categoria do DBalunos (autoridade do usuário) 2) categoria presente na célula de registros 3) categoria calculada
+      const finalCategoria = (typeof categoriaFromAluno === 'string' && categoriaFromAluno.trim() !== '') ? categoriaFromAluno : (categoriaFromCell || categoriaCalc);
+      // Preferir gênero do DBalunos > célula > '-' (abreviação aplicável)
+      const finalGenero = (typeof generoFromAluno === 'string' && generoFromAluno.trim() !== '') ? generoFromAluno : (generoFromCell || '-');
+
+      const registroObj = {
         nome: nomeStr,
-        dataNascimento: excelDateToISO(dataNascimentoVal),
-        dataRegistro: excelDateToISO(dataRegistroVal),
+        dataNascimento: dataNiso,
+        dataRegistro: dataRiso,
         tempo: tempo,
+        categoria: finalCategoria,
+        genero: finalGenero,
         prova: provaVal ? String(provaVal).trim() : '',
         estilo: estiloVal ? String(estiloVal).trim() : '',
         modo: modoVal ? String(modoVal).trim() : ''
-      });
+      };
+
+      registros.push(registroObj);
+      // Log completo para debug: valores de data e categoria
+      console.log(`Linha ${rowNumber} - dataNascimento raw:`, dataNascimentoVal, '->', dataNiso, 'dataRegistro raw:', dataRegistroVal, '->', dataRiso, 'categoria:', categoriaCalc);
+      console.log('Registro importado:', registroObj);
     });
     
     return registros;

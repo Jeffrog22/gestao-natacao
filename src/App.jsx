@@ -14,7 +14,7 @@ import { parseExcelFile } from './utils/excel';
 
 // --- Configurações e Constantes ---
 
-const PROVAS = ['50m', '100m', '200m', '400m', '800m', '1500m'];
+const PROVAS = ['25m', '50m', '100m', '200m', '400m', '800m', '1500m'];
 const ESTILOS = ['Livre', 'Costas', 'Peito', 'Borboleta', 'Medley'];
 const MODOS = ['Aula', 'Festival', 'Competição']; 
 
@@ -49,23 +49,27 @@ const calcularCategoria = (dataNascimento, dataRegistro) => {
 export default function App() {
   // Estado dos Dados Iniciais
   const [registros, setRegistros] = useState([
-    { id: 1, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2021-06-20', tempo: '00:32.50', prova: '50m', estilo: 'Livre', modo: 'Competição' },
-    { id: 2, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2023-11-10', tempo: '00:29.10', prova: '50m', estilo: 'Livre', modo: 'Competição' },
-    { id: 3, nome: 'Carlos Souza', dataNascimento: '2008-02-10', dataRegistro: '2023-05-05', tempo: '01:05.20', prova: '100m', estilo: 'Costas', modo: 'Aula' },
+    { id: 1, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2021-06-20', tempo: '00:32.50', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
+    { id: 2, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2023-11-10', tempo: '00:29.10', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
+    { id: 3, nome: 'Carlos Souza', dataNascimento: '2008-02-10', dataRegistro: '2023-05-05', tempo: '01:05.20', prova: '100m', estilo: 'Costas', modo: 'Aula', genero: 'M' },
   ]);
 
   const [lixeira, setLixeira] = useState([]);
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
 
   // Estado de Filtros e Ordenação
-  const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '' });
+  const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '' });
+  const [generoDropdownOpen, setGeneroDropdownOpen] = useState(false);
+  // add genero to filtros
+  if (!('genero' in filtros)) filtros.genero = '';
+  const [categoriaDropdownOpen, setCategoriaDropdownOpen] = useState(false);
   const [ordenacao, setOrdenacao] = useState({ campo: 'dataRegistro', direcao: 'desc' });
 
   // Estado do Formulário
   const [modalAberto, setModalAberto] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({
-    nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: ''
+    nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: ''
   });
 
   // Ref para input de arquivo
@@ -83,6 +87,7 @@ export default function App() {
 
     try {
       const registrosImportados = await parseExcelFile(file);
+      console.log('registrosImportados (preview):', JSON.stringify(registrosImportados.slice(0, 5), null, 2));
       
       if (registrosImportados.length === 0) {
         alert('Nenhum registro válido encontrado no arquivo.');
@@ -97,7 +102,7 @@ export default function App() {
 
       // Adicionar aos registros existentes
       setRegistros(prev => [...prev, ...registrosComIds]);
-      
+
       alert(`${registrosComIds.length} registro(s) importado(s) com sucesso!`);
     } catch (error) {
       alert(`Erro ao importar arquivo: ${error.message}`);
@@ -115,7 +120,7 @@ export default function App() {
   };
 
   const limparFiltros = () => {
-    setFiltros({ nome: '', prova: '', estilo: '', modo: '' });
+    setFiltros({ nome: '', prova: '', estilo: '', modo: '', categoria: '', genero: '' });
   };
 
   const handleTempoChange = (e) => {
@@ -170,7 +175,7 @@ export default function App() {
   const fecharModal = () => {
     setModalAberto(false);
     setEditandoId(null);
-    setForm({ nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '' });
+    setForm({ nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: '' });
   };
 
   // --- Processamento de Dados (Memoized) ---
@@ -179,11 +184,15 @@ export default function App() {
     const fonte = abaAtiva === 'ativos' ? registros : lixeira;
 
     let dadosFiltrados = fonte.filter(item => {
+      const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
+      const generoItem = item.genero || '-';
       return (
         item.nome.toLowerCase().includes(filtros.nome.toLowerCase()) &&
         (filtros.prova === '' || item.prova === filtros.prova) &&
         (filtros.estilo === '' || item.estilo === filtros.estilo) &&
-        (filtros.modo === '' || item.modo === filtros.modo)
+        (filtros.modo === '' || item.modo === filtros.modo) &&
+        (filtros.categoria === '' || categoriaHistorica === filtros.categoria) &&
+        (filtros.genero === '' || generoItem === filtros.genero)
       );
     });
 
@@ -302,49 +311,93 @@ export default function App() {
           <table className="w-full text-left border-collapse">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                {[
-                  { key: 'nome', label: 'Aluno' },
-                  { key: 'dataRegistro', label: 'Data Reg.' },
-                  { key: 'categoria', label: 'Categoria (Histórica)' },
-                  { key: 'prova', label: 'Prova' },
-                  { key: 'estilo', label: 'Estilo' },
-                  { key: 'tempo', label: 'Tempo' },
-                  { key: 'modo', label: 'Modo' },
-                ].map((col) => (
-                  <th 
-                    key={col.key}
-                    onClick={() => col.key !== 'categoria' && handleSort(col.key)}
-                    className={`p-4 text-xs font-bold text-gray-500 uppercase tracking-wider ${col.key !== 'categoria' ? 'cursor-pointer hover:bg-gray-100' : ''}`}
-                  >
-                    <div className="flex items-center gap-1">
-                      {col.label}
-                      {ordenacao.campo === col.key && (
-                        ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                      )}
-                      {ordenacao.campo !== col.key && col.key !== 'categoria' && <div className="w-3 h-3 bg-gray-300 rounded-full opacity-20"></div>} 
-                    </div>
-                  </th>
-                ))}
+                {
+                  // Cabeçalhos customizados para tratar categoria e genero
+                }
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">Aluno</th>
+                <th onClick={() => handleSort('dataRegistro')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Data Reg.
+                  {ordenacao.campo === 'dataRegistro' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                </th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setCategoriaDropdownOpen(prev => !prev); }}
+                      className={`flex items-center gap-2 ${filtros.categoria ? 'text-white bg-indigo-600 px-2 py-1 rounded' : ''}`}
+                    >
+                      CATEGORIA
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+                    </button>
+
+                    {categoriaDropdownOpen && (
+                      <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-40 p-2">
+                        <div className="text-xs text-gray-500 mb-1">Filtrar por Categoria</div>
+                        {['', 'Mirim','Petiz','Infantil','Juvenil','Junior','Sênior','-'].map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => { setFiltros({...filtros, categoria: opt}); setCategoriaDropdownOpen(false); }}
+                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.categoria === opt ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                          >
+                            {opt === '' ? 'Todos' : opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </th>
+                <th onClick={() => handleSort('prova')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Prova {ordenacao.campo === 'prova' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('estilo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Estilo {ordenacao.campo === 'estilo' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('tempo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Tempo {ordenacao.campo === 'tempo' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">Modo</th>
+                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setGeneroDropdownOpen(prev => !prev); }}
+                      className={`flex items-center gap-2 ${filtros.genero ? 'text-white bg-indigo-600 px-2 py-1 rounded' : ''}`}
+                    >
+                      GÊNERO
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
+                    </button>
+
+                    {generoDropdownOpen && (
+                      <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-32 p-2">
+                        <div className="text-xs text-gray-500 mb-1">Filtrar por Gênero</div>
+                        {['', 'M','F','O','-'].map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => { setFiltros({...filtros, genero: opt}); setGeneroDropdownOpen(false); }}
+                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.genero === opt ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                          >
+                            {opt === '' ? 'Todos' : opt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </th>
                 <th className="p-4 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {dadosExibidos.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-gray-400">Nenhum registro encontrado.</td>
+                  <td colSpan="9" className="p-8 text-center text-gray-400">Nenhum registro encontrado.</td>
                 </tr>
               ) : (
                 dadosExibidos.map((item) => {
-                  const categoriaHistorica = calcularCategoria(item.dataNascimento, item.dataRegistro);
+                  const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
                   
                   return (
                     <tr key={item.id} className="hover:bg-blue-50 transition-colors group">
                       <td className="p-4 font-medium text-gray-900">{item.nome}</td>
                       <td className="p-4 text-gray-600">{new Date(item.dataRegistro).toLocaleDateString('pt-BR')}</td>
                       <td className="p-4">
-                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 rounded text-xs font-bold">
+                        <button
+                          onClick={() => setFiltros({...filtros, categoria: categoriaHistorica})}
+                          className={`px-2 py-1 rounded text-xs font-bold focus:outline-none ${filtros.categoria === categoriaHistorica ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+                          title={`Filtrar por ${categoriaHistorica}`}
+                        >
                           {categoriaHistorica}
-                        </span>
+                        </button>
                       </td>
                       <td className="p-4 text-gray-600">{item.prova}</td>
                       <td className="p-4 text-gray-600">{item.estilo}</td>
@@ -356,6 +409,7 @@ export default function App() {
                           {item.modo}
                         </span>
                       </td>
+                      <td className="p-4 text-center font-bold">{item.genero || '-'}</td>
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {abaAtiva === 'ativos' ? (
