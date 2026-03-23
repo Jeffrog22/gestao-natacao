@@ -348,6 +348,13 @@ export async function parseExcelFile(file) {
           if (nameVal) {
             alunosByName[normalizeName(nameVal)] = info;
           }
+          alunosArray.push({
+            codigo: codeVal ? String(codeVal).trim() : '',
+            nome: nameVal ? String(nameVal).trim() : '',
+            dataNascimento: birthIso || '',
+            categoria: catVal ? String(catVal).trim() : '',
+            genero: normalizeGenero(genderVal)
+          });
         });
 
         console.log('Mapeamento DBalunos carregado: codes=', Object.keys(alunosByCode).length, 'names=', Object.keys(alunosByName).length);
@@ -378,6 +385,7 @@ export async function parseExcelFile(file) {
     
     // Processa cada linha (começando da linha 2)
     const registros = [];
+    const alunosArray = [];
     
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       // Pula a linha de cabeçalho
@@ -479,7 +487,7 @@ export async function parseExcelFile(file) {
       console.log('Registro importado:', registroObj);
     });
     
-    return registros;
+    return { registros, alunos: alunosArray };
   } catch (error) {
     throw new Error(`Erro ao processar arquivo Excel: ${error.message}`);
   }
