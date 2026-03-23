@@ -11,6 +11,7 @@ import {
   FileUp
 } from 'lucide-react';
 import { parseExcelFile } from './utils/excel';
+import * as ExcelJS from 'exceljs';
 
 // --- Configurações e Constantes ---
 
@@ -54,6 +55,8 @@ export default function App() {
     { id: 3, nome: 'Carlos Souza', dataNascimento: '2008-02-10', dataRegistro: '2023-05-05', tempo: '01:05.20', prova: '100m', estilo: 'Costas', modo: 'Aula', genero: 'M' },
   ]);
 
+  const [alunos, setAlunos] = useState(BASE_ATLETAS.map(a => ({ nome: a.nome, dataNascimento: a.Aniversário || '', codigo: a.id, genero: '' })));
+
   const [lixeira, setLixeira] = useState([]);
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
 
@@ -86,19 +89,33 @@ export default function App() {
     if (!file) return;
 
     try {
-      const registrosImportados = await parseExcelFile(file);
+      const parsed = await parseExcelFile(file);
+      // parseExcelFile agora retorna { registros, alunos }
+      const registrosImportados = parsed.registros || [];
+      const alunosImportados = parsed.alunos || [];
+
       console.log('registrosImportados (preview):', JSON.stringify(registrosImportados.slice(0, 5), null, 2));
-      
+      console.log('alunosImportados (preview):', JSON.stringify(alunosImportados.slice(0, 5), null, 2));
+
+      if (alunosImportados.length > 0) {
+        setAlunos(prev => {
+          // merge unique by normalized name or codigo
+          const existing = [...prev];
+          const names = new Set(existing.map(x => x.nome));
+          alunosImportados.forEach(a => {
+            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '' });
+          });
+          return existing;
+        });
+      }
+
       if (registrosImportados.length === 0) {
         alert('Nenhum registro válido encontrado no arquivo.');
         return;
       }
 
       // Atribuir IDs únicos aos registros importados
-      const registrosComIds = registrosImportados.map((reg, idx) => ({
-        ...reg,
-        id: Date.now() + idx
-      }));
+      const registrosComIds = registrosImportados.map((reg, idx) => ({ ...reg, id: Date.now() + idx }));
 
       // Adicionar aos registros existentes
       setRegistros(prev => [...prev, ...registrosComIds]);
@@ -109,6 +126,34 @@ export default function App() {
     } finally {
       // Limpar o input para permitir reimportar o mesmo arquivo
       e.target.value = '';
+    }
+  };
+
+  // Exportar registros para arquivo XLSX
+  const exportRegistrosToExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('DBregistros');
+
+      // Cabeçalhos
+      sheet.addRow(['Nome','DataNascimento','DataRegistro','Tempo','Prova','Estilo','Modo','Categoria','Genero']);
+
+      registros.forEach(r => {
+        sheet.addRow([r.nome || '', r.dataNascimento || '', r.dataRegistro || '', r.tempo || '', r.prova || '', r.estilo || '', r.modo || '', r.categoria || '', r.genero || '']);
+      });
+
+      const buf = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `registros_${Date.now()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Falha ao exportar XLSX: ' + err.message);
     }
   };
 
@@ -148,6 +193,9 @@ export default function App() {
 
   const moverParaLixeira = (id) => {
     const item = registros.find(r => r.id === id);
+    if (!item) return;
+    const ok = window.confirm(`Mover "${item.nome}" para a lixeira?`);
+    if (!ok) return;
     setRegistros(prev => prev.filter(r => r.id !== id));
     setLixeira(prev => [...prev, item]);
   };
@@ -159,10 +207,16 @@ export default function App() {
   };
 
   const excluirDefinitivamente = (id) => {
+    const item = lixeira.find(r => r.id === id);
+    if (!item) return;
+    const ok = window.confirm(`Excluir definitivamente "${item.nome}"? Esta ação não pode ser desfeita.`);
+    if (!ok) return;
     setLixeira(prev => prev.filter(r => r.id !== id));
   };
 
   const limparLixeiraCompleta = () => {
+    const ok = window.confirm('Esvaziar completamente a lixeira? Todos os registros serão removidos permanentemente.');
+    if (!ok) return;
     setLixeira([]);
   };
 
@@ -231,6 +285,12 @@ export default function App() {
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
             >
               <FileUp size={20} /> Importar XLSX
+            </button>
+            <button 
+              onClick={exportRegistrosToExcel}
+              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+            >
+              Exportar XLSX
             </button>
             <button 
               onClick={() => setModalAberto(true)}
@@ -460,15 +520,15 @@ export default function App() {
                   value={form.nome} 
                   onChange={e => {
                     const nomeSelecionado = e.target.value;
-                    const atleta = BASE_ATLETAS.find(a => a.nome === nomeSelecionado);
-                    // Usando a variável dataAniversário conforme solicitado, mapeando da coluna Aniversário
-                    const dataAniversário = atleta ? atleta.Aniversário : '';
-                    setForm({...form, nome: nomeSelecionado, dataNascimento: dataAniversário});
+                    const atleta = alunos.find(a => a.nome === nomeSelecionado);
+                    const dataAniversário = atleta ? (atleta.dataNascimento || '') : '';
+                    const genero = atleta ? (atleta.genero || '') : '';
+                    setForm({...form, nome: nomeSelecionado, dataNascimento: dataAniversário, genero});
                   }}
                 >
                   <option value="">Selecione um atleta</option>
-                  {BASE_ATLETAS.map(atleta => (
-                    <option key={atleta.id} value={atleta.nome}>{atleta.nome}</option>
+                  {alunos.map((atleta, idx) => (
+                    <option key={idx} value={atleta.nome}>{atleta.nome}</option>
                   ))}
                 </select>
               </div>
