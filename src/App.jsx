@@ -213,13 +213,20 @@ export default function App() {
   };
 
   const handleTempoChange = (e) => {
-    const valor = e.target.value.replace(/\D/g, '').slice(-6);
+    const valor = e.target.value;
+    const valorLimpo = valor.replace(/[^\d:.]/g, '');
+
+    const formatoNumerico = /^\d{0,6}$/;
+    const formatoComSeparadores = /^\d{0,2}(?::\d{0,2})?(?:\.\d{0,2})?$/;
+
     if (!valor) {
       setForm(prev => ({ ...prev, tempo: '' }));
       return;
     }
 
-    setForm(prev => ({ ...prev, tempo: formatTempoFromDigits(valor) }));
+    if (formatoNumerico.test(valorLimpo) || formatoComSeparadores.test(valorLimpo)) {
+      setForm(prev => ({ ...prev, tempo: valorLimpo }));
+    }
   };
 
   const salvarRegistro = (e) => {
