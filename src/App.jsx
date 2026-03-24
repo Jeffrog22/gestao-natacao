@@ -76,8 +76,17 @@ const normalizeTempoInput = (value) => {
     return `${mm}:${ss}.${cs}`;
   }
 
-  const digits = raw.replace(/\D/g, '').slice(0, 6);
+  const digits = raw.replace(/\D/g, '').slice(-6);
   return digits ? formatTempoFromDigits(digits) : '';
+};
+
+const isTempoValido = (tempo) => {
+  if (!tempo) return false;
+  const match = tempo.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
+  if (!match) return false;
+  const segundos = Number(match[2]);
+  const centesimos = Number(match[3]);
+  return segundos >= 0 && segundos <= 59 && centesimos >= 0 && centesimos <= 99;
 };
 
 // --- Componente Principal ---
@@ -204,7 +213,7 @@ export default function App() {
   };
 
   const handleTempoChange = (e) => {
-    const valor = e.target.value.replace(/\D/g, '').slice(0, 6);
+    const valor = e.target.value.replace(/\D/g, '').slice(-6);
     if (!valor) {
       setForm(prev => ({ ...prev, tempo: '' }));
       return;
@@ -216,7 +225,7 @@ export default function App() {
   const salvarRegistro = (e) => {
     e.preventDefault();
     const tempoNormalizado = normalizeTempoInput(form.tempo);
-    if (!tempoNormalizado) {
+    if (!tempoNormalizado || !isTempoValido(tempoNormalizado)) {
       alert('Tempo inválido. Use MM:SS.CC ou 6 dígitos (ex: 000000).');
       return;
     }
@@ -273,6 +282,8 @@ export default function App() {
   };
 
   const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
+  const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
+  const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
 
   // --- Processamento de Dados (Memoized) ---
 
@@ -653,11 +664,14 @@ export default function App() {
                   required
                   type="text"
                   placeholder="000000 ou 00:00.00"
-                  className="w-full p-2 border rounded-lg"
+                  className={`w-full p-2 border rounded-lg ${tempoInvalidoNoForm ? 'border-red-500 ring-1 ring-red-200' : ''}`}
                   value={form.tempo}
                   onChange={handleTempoChange}
                   onBlur={() => setForm(prev => ({ ...prev, tempo: normalizeTempoInput(prev.tempo) }))}
                 />
+                {tempoInvalidoNoForm && (
+                  <p className="mt-1 text-xs text-red-600">Tempo inválido (segundos devem ficar entre 00 e 59).</p>
+                )}
               </div>
 
               <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t">
