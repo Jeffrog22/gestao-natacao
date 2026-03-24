@@ -121,20 +121,6 @@ function flattenCellValue(val) {
   return '';
 }
 
-function normalizeName(name) {
-  if (!name) return '';
-  try {
-    return String(name)
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .replace(/\s+/g, ' ');
-  } catch {
-    return String(name).trim().toLowerCase();
-  }
-}
-
 function looksLikeCode(value) {
   if (!value) return false;
   const candidate = String(value).trim();
@@ -320,7 +306,6 @@ export async function parseExcelFile(file) {
     }
 
     const alunosByCode = {};
-    const alunosByName = {};
     const alunosArray = [];
 
     if (alunosSheet) {
@@ -357,9 +342,6 @@ export async function parseExcelFile(file) {
             alunosByCode[key.toUpperCase()] = info;
             alunosByCode[key.toLowerCase()] = info;
           }
-          if (nameVal) {
-            alunosByName[normalizeName(nameVal)] = info;
-          }
           alunosArray.push({
             codigo: codeVal ? String(codeVal).trim() : '',
             nome: nameVal ? String(nameVal).trim() : '',
@@ -369,7 +351,7 @@ export async function parseExcelFile(file) {
           });
         });
 
-        console.log('Mapeamento DBalunos carregado: codes=', Object.keys(alunosByCode).length, 'names=', Object.keys(alunosByName).length);
+        console.log('Mapeamento DBalunos carregado: codes=', Object.keys(alunosByCode).length);
       } catch (err) {
         console.warn('Falha ao processar DBalunos:', err.message);
       }
@@ -465,21 +447,6 @@ export async function parseExcelFile(file) {
           if (!categoriaFromAluno && found && found.categoria) categoriaFromAluno = found.categoria;
           if (!generoFromAluno && found && found.genero) generoFromAluno = found.genero;
           if ((!nomeFinal || looksLikeCode(nomeFinal)) && found && found.nome) nomeFinal = found.nome;
-        }
-      }
-
-      if ((!dataNiso || dataNiso === '') && nomeFinal && !looksLikeCode(nomeFinal)) {
-        const nameKey = normalizeName(nomeFinal);
-        const foundByName = alunosByName[nameKey];
-        if (foundByName && foundByName.birth) {
-          dataNiso = foundByName.birth;
-          console.log(`Fallback: preenchi dataNascimento por nome ${nomeFinal} -> ${dataNiso}`);
-        }
-        if (foundByName && foundByName.categoria) {
-          categoriaFromAluno = foundByName.categoria;
-        }
-        if (foundByName && foundByName.genero) {
-          generoFromAluno = foundByName.genero;
         }
       }
 

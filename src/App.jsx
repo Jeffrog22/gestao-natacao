@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Trash2, 
   RefreshCcw, 
@@ -25,14 +25,6 @@ const PROVAS_POR_ESTILO = {
 };
 const PROVAS = Array.from(new Set(Object.values(PROVAS_POR_ESTILO).flat()));
 const MODOS = ['Aula', 'Festival', 'Competição']; 
-
-// Base de dados Mock de Atletas
-const BASE_ATLETAS = [
-  { id: 1, nome: 'Ana Silva', Aniversário: '2010-05-15' },
-  { id: 2, nome: 'Carlos Souza', Aniversário: '2008-02-10' },
-  { id: 3, nome: 'Beatriz Costa', Aniversário: '2012-08-20' },
-  { id: 4, nome: 'Daniel Oliveira', Aniversário: '2009-11-05' },
-];
 
 // Lógica de Categorias CBDA (Baseada na idade na época do registro)
 const calcularCategoria = (dataNascimento, dataRegistro) => {
@@ -93,13 +85,9 @@ const isTempoValido = (tempo) => {
 
 export default function App() {
   // Estado dos Dados Iniciais
-  const [registros, setRegistros] = useState([
-    { id: 1, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2021-06-20', tempo: '00:32.50', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
-    { id: 2, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2023-11-10', tempo: '00:29.10', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
-    { id: 3, nome: 'Carlos Souza', dataNascimento: '2008-02-10', dataRegistro: '2023-05-05', tempo: '01:05.20', prova: '100m', estilo: 'Costas', modo: 'Aula', genero: 'M' },
-  ]);
+  const [registros, setRegistros] = useState([]);
 
-  const [alunos, setAlunos] = useState(BASE_ATLETAS.map(a => ({ nome: a.nome, dataNascimento: a.Aniversário || '', codigo: a.id, genero: '' })));
+  const [alunos, setAlunos] = useState([]);
 
   const [lixeira, setLixeira] = useState([]);
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
@@ -119,14 +107,7 @@ export default function App() {
     nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: ''
   });
 
-  // Ref para input de arquivo
-  const fileInputRef = useRef(null);
-
   // --- Lógica de Negócio e Manipuladores ---
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -334,18 +315,18 @@ export default function App() {
           </div>
           <div className="flex gap-3">
             <input
+              id="import-xlsx-input"
               type="file"
-              ref={fileInputRef}
               onChange={handleFileChange}
               accept=".xlsx,.xls"
               style={{ display: 'none' }}
             />
-            <button 
-              onClick={handleImportClick}
+            <label
+              htmlFor="import-xlsx-input"
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
             >
               <FileUp size={20} /> Importar XLSX
-            </button>
+            </label>
             <button 
               onClick={exportRegistrosToExcel}
               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
