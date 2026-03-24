@@ -15,8 +15,15 @@ import * as ExcelJS from 'exceljs';
 
 // --- Configurações e Constantes ---
 
-const PROVAS = ['25m', '50m', '100m', '200m', '400m', '800m', '1500m'];
 const ESTILOS = ['Livre', 'Costas', 'Peito', 'Borboleta', 'Medley'];
+const PROVAS_POR_ESTILO = {
+  Livre: ['25m', '50m', '100m', '200m', '400m', '800m', '1500m'],
+  Costas: ['25m', '50m', '100m', '200m', '400m'],
+  Peito: ['25m', '50m', '100m', '200m', '400m'],
+  Borboleta: ['25m', '50m', '100m', '200m', '400m'],
+  Medley: ['100m', '200m', '400m']
+};
+const PROVAS = Array.from(new Set(Object.values(PROVAS_POR_ESTILO).flat()));
 const MODOS = ['Aula', 'Festival', 'Competição']; 
 
 // Base de dados Mock de Atletas
@@ -231,6 +238,8 @@ export default function App() {
     setEditandoId(null);
     setForm({ nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: '' });
   };
+
+  const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
 
   // --- Processamento de Dados (Memoized) ---
 
@@ -554,7 +563,21 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Estilo</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.estilo} onChange={e => setForm({...form, estilo: e.target.value})}>
+                <select
+                  required
+                  className="w-full p-2 border rounded-lg bg-white"
+                  value={form.estilo}
+                  onChange={e => {
+                    const novoEstilo = e.target.value;
+                    const provasDoEstilo = PROVAS_POR_ESTILO[novoEstilo] || [];
+                    const provaAtualValida = provasDoEstilo.includes(form.prova);
+                    setForm({
+                      ...form,
+                      estilo: novoEstilo,
+                      prova: provaAtualValida ? form.prova : ''
+                    });
+                  }}
+                >
                   <option value="">Selecione</option>
                   {ESTILOS.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
@@ -562,9 +585,15 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prova</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.prova} onChange={e => setForm({...form, prova: e.target.value})}>
-                  <option value="">Selecione</option>
-                  {PROVAS.map(p => <option key={p} value={p}>{p}</option>)}
+                <select
+                  required
+                  className="w-full p-2 border rounded-lg bg-white"
+                  value={form.prova}
+                  onChange={e => setForm({...form, prova: e.target.value})}
+                  disabled={!form.estilo}
+                >
+                  <option value="">{form.estilo ? 'Selecione' : 'Selecione o estilo primeiro'}</option>
+                  {provasDisponiveisForm.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
 
