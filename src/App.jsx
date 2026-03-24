@@ -111,6 +111,8 @@ export default function App() {
 
   // Estado de Filtros e Ordenação
   const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '' });
+  const [buscaDropdownOpen, setBuscaDropdownOpen] = useState(false);
+  const [buscaIndiceAtivo, setBuscaIndiceAtivo] = useState(-1);
   const [generoDropdownOpen, setGeneroDropdownOpen] = useState(false);
   // add genero to filtros
   if (!('genero' in filtros)) filtros.genero = '';
@@ -305,6 +307,15 @@ export default function App() {
     return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
   }, [alunos, alunoBusca]);
 
+  const nomesBuscaSugeridos = useMemo(() => {
+    const nomesRegistros = registros.map(r => (r.nome || '').trim()).filter(Boolean);
+    const nomesAlunos = alunos.map(a => (a.nome || '').trim()).filter(Boolean);
+    const nomesUnicos = Array.from(new Set([...nomesRegistros, ...nomesAlunos]));
+    const termo = (filtros.nome || '').trim().toLowerCase();
+    if (!termo) return nomesUnicos.slice(0, 8);
+    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+  }, [registros, alunos, filtros.nome]);
+
   const selecionarAluno = (nomeSelecionado) => {
     const aluno = alunos.find(a => a.nome === nomeSelecionado);
     setForm(prev => ({
@@ -426,8 +437,58 @@ export default function App() {
                 placeholder="Nome do atleta..." 
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 value={filtros.nome}
-                onChange={e => setFiltros({...filtros, nome: e.target.value})}
+                onFocus={() => {
+                  setBuscaDropdownOpen(true);
+                  setBuscaIndiceAtivo(-1);
+                }}
+                onBlur={() => setTimeout(() => setBuscaDropdownOpen(false), 120)}
+                onChange={e => {
+                  setFiltros({...filtros, nome: e.target.value});
+                  setBuscaDropdownOpen(true);
+                  setBuscaIndiceAtivo(-1);
+                }}
+                onKeyDown={e => {
+                  if (!buscaDropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    setBuscaDropdownOpen(true);
+                  }
+                  if (!nomesBuscaSugeridos.length) return;
+
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setBuscaIndiceAtivo(prev => (prev + 1) % nomesBuscaSugeridos.length);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setBuscaIndiceAtivo(prev => (prev <= 0 ? nomesBuscaSugeridos.length - 1 : prev - 1));
+                  } else if (e.key === 'Enter' && buscaIndiceAtivo >= 0) {
+                    e.preventDefault();
+                    setFiltros({ ...filtros, nome: nomesBuscaSugeridos[buscaIndiceAtivo] });
+                    setBuscaDropdownOpen(false);
+                    setBuscaIndiceAtivo(-1);
+                  } else if (e.key === 'Escape') {
+                    setBuscaDropdownOpen(false);
+                    setBuscaIndiceAtivo(-1);
+                  }
+                }}
               />
+
+              {buscaDropdownOpen && nomesBuscaSugeridos.length > 0 && (
+                <div className="absolute z-40 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                  {nomesBuscaSugeridos.map((nome, idx) => (
+                    <button
+                      key={`${nome}-${idx}`}
+                      type="button"
+                      onMouseDown={() => {
+                        setFiltros({ ...filtros, nome });
+                        setBuscaDropdownOpen(false);
+                        setBuscaIndiceAtivo(-1);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm ${idx === buscaIndiceAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                    >
+                      {nome}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           
