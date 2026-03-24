@@ -204,19 +204,13 @@ export default function App() {
   };
 
   const handleTempoChange = (e) => {
-    const valor = e.target.value;
+    const valor = e.target.value.replace(/\D/g, '').slice(0, 6);
     if (!valor) {
       setForm(prev => ({ ...prev, tempo: '' }));
       return;
     }
 
-    if (/^\d{0,6}$/.test(valor) || /^\d{1,2}:\d{0,2}(?:\.\d{0,2})?$/.test(valor)) {
-      setForm(prev => ({ ...prev, tempo: valor }));
-      return;
-    }
-
-    const apenasDigitos = valor.replace(/\D/g, '').slice(0, 6);
-    setForm(prev => ({ ...prev, tempo: apenasDigitos }));
+    setForm(prev => ({ ...prev, tempo: formatTempoFromDigits(valor) }));
   };
 
   const salvarRegistro = (e) => {
