@@ -123,6 +123,9 @@ export default function App() {
   const [form, setForm] = useState({
     nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: ''
   });
+  const [alunoBusca, setAlunoBusca] = useState('');
+  const [autocompleteAberto, setAutocompleteAberto] = useState(false);
+  const [indiceAlunoAtivo, setIndiceAlunoAtivo] = useState(-1);
 
   // --- Lógica de Negócio e Manipuladores ---
 
@@ -276,6 +279,9 @@ export default function App() {
 
   const abrirModalEdicao = (registro) => {
     setForm(registro);
+    setAlunoBusca(registro.nome || '');
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
     setEditandoId(registro.id);
     setModalAberto(true);
   };
@@ -284,11 +290,33 @@ export default function App() {
     setModalAberto(false);
     setEditandoId(null);
     setForm({ nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: '' });
+    setAlunoBusca('');
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
   };
 
   const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
   const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
   const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
+  const alunosSugeridos = useMemo(() => {
+    const nomesUnicos = Array.from(new Set(alunos.map(a => (a.nome || '').trim()).filter(Boolean)));
+    const termo = alunoBusca.trim().toLowerCase();
+    if (!termo) return nomesUnicos.slice(0, 8);
+    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+  }, [alunos, alunoBusca]);
+
+  const selecionarAluno = (nomeSelecionado) => {
+    const aluno = alunos.find(a => a.nome === nomeSelecionado);
+    setForm(prev => ({
+      ...prev,
+      nome: nomeSelecionado,
+      dataNascimento: aluno?.dataNascimento || '',
+      genero: aluno?.genero || ''
+    }));
+    setAlunoBusca(nomeSelecionado);
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
+  };
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.registros, JSON.stringify(registros));
@@ -601,23 +629,68 @@ export default function App() {
             <form onSubmit={salvarRegistro} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Aluno</label>
-                <select 
-                  required 
-                  className="w-full p-2 border rounded-lg bg-white" 
-                  value={form.nome} 
-                  onChange={e => {
-                    const nomeSelecionado = e.target.value;
-                    const atleta = alunos.find(a => a.nome === nomeSelecionado);
-                    const dataAniversário = atleta ? (atleta.dataNascimento || '') : '';
-                    const genero = atleta ? (atleta.genero || '') : '';
-                    setForm({...form, nome: nomeSelecionado, dataNascimento: dataAniversário, genero});
-                  }}
-                >
-                  <option value="">Selecione um atleta</option>
-                  {alunos.map((atleta, idx) => (
-                    <option key={idx} value={atleta.nome}>{atleta.nome}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    required
+                    type="text"
+                    className="w-full p-2 border rounded-lg bg-white"
+                    placeholder="Digite para buscar aluno..."
+                    value={alunoBusca}
+                    onFocus={() => {
+                      setAutocompleteAberto(true);
+                      setIndiceAlunoAtivo(-1);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setAutocompleteAberto(false), 120);
+                    }}
+                    onChange={e => {
+                      const valor = e.target.value;
+                      setAlunoBusca(valor);
+                      setForm(prev => ({ ...prev, nome: valor }));
+                      const encontrado = alunos.find(a => a.nome === valor);
+                      if (encontrado) {
+                        setForm(prev => ({ ...prev, nome: valor, dataNascimento: encontrado.dataNascimento || '', genero: encontrado.genero || '' }));
+                      }
+                      setAutocompleteAberto(true);
+                      setIndiceAlunoAtivo(-1);
+                    }}
+                    onKeyDown={e => {
+                      if (!autocompleteAberto && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                        setAutocompleteAberto(true);
+                      }
+                      if (!alunosSugeridos.length) return;
+
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setIndiceAlunoAtivo(prev => (prev + 1) % alunosSugeridos.length);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setIndiceAlunoAtivo(prev => (prev <= 0 ? alunosSugeridos.length - 1 : prev - 1));
+                      } else if (e.key === 'Enter' && indiceAlunoAtivo >= 0) {
+                        e.preventDefault();
+                        selecionarAluno(alunosSugeridos[indiceAlunoAtivo]);
+                      } else if (e.key === 'Escape') {
+                        setAutocompleteAberto(false);
+                        setIndiceAlunoAtivo(-1);
+                      }
+                    }}
+                  />
+
+                  {autocompleteAberto && alunosSugeridos.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                      {alunosSugeridos.map((nome, idx) => (
+                        <button
+                          key={`${nome}-${idx}`}
+                          type="button"
+                          onMouseDown={() => selecionarAluno(nome)}
+                          className={`w-full text-left px-3 py-2 text-sm ${idx === indiceAlunoAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                        >
+                          {nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
