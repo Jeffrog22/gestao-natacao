@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trash2, 
   RefreshCcw, 
@@ -25,6 +25,23 @@ const PROVAS_POR_ESTILO = {
 };
 const PROVAS = Array.from(new Set(Object.values(PROVAS_POR_ESTILO).flat()));
 const MODOS = ['Aula', 'Festival', 'Competição']; 
+
+const STORAGE_KEYS = {
+  registros: 'registro-tempos:registros',
+  alunos: 'registro-tempos:alunos',
+  lixeira: 'registro-tempos:lixeira'
+};
+
+const loadFromStorage = (key, fallback = []) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 // Lógica de Categorias CBDA (Baseada na idade na época do registro)
 const calcularCategoria = (dataNascimento, dataRegistro) => {
@@ -85,11 +102,11 @@ const isTempoValido = (tempo) => {
 
 export default function App() {
   // Estado dos Dados Iniciais
-  const [registros, setRegistros] = useState([]);
+  const [registros, setRegistros] = useState(() => loadFromStorage(STORAGE_KEYS.registros, []));
 
-  const [alunos, setAlunos] = useState([]);
+  const [alunos, setAlunos] = useState(() => loadFromStorage(STORAGE_KEYS.alunos, []));
 
-  const [lixeira, setLixeira] = useState([]);
+  const [lixeira, setLixeira] = useState(() => loadFromStorage(STORAGE_KEYS.lixeira, []));
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
 
   // Estado de Filtros e Ordenação
@@ -272,6 +289,18 @@ export default function App() {
   const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
   const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
   const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.registros, JSON.stringify(registros));
+  }, [registros]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(alunos));
+  }, [alunos]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.lixeira, JSON.stringify(lixeira));
+  }, [lixeira]);
 
   // --- Processamento de Dados (Memoized) ---
 
