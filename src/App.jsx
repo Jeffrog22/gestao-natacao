@@ -52,6 +52,34 @@ const calcularCategoria = (dataNascimento, dataRegistro) => {
   return 'Sênior';
 };
 
+const formatTempoFromDigits = (digits) => {
+  const padded = String(digits).padStart(6, '0').slice(-6);
+  const mm = padded.slice(0, 2);
+  const ss = padded.slice(2, 4);
+  const cs = padded.slice(4, 6);
+  return `${mm}:${ss}.${cs}`;
+};
+
+const normalizeTempoInput = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^\d{1,6}$/.test(raw)) {
+    return formatTempoFromDigits(raw);
+  }
+
+  const match = raw.match(/^(\d{1,2}):(\d{1,2})(?:\.(\d{1,2}))?$/);
+  if (match) {
+    const mm = match[1].padStart(2, '0');
+    const ss = match[2].padStart(2, '0');
+    const cs = (match[3] || '0').padStart(2, '0');
+    return `${mm}:${ss}.${cs}`;
+  }
+
+  const digits = raw.replace(/\D/g, '').slice(0, 6);
+  return digits ? formatTempoFromDigits(digits) : '';
+};
+
 // --- Componente Principal ---
 
 export default function App() {
@@ -176,24 +204,35 @@ export default function App() {
   };
 
   const handleTempoChange = (e) => {
-    const valor = e.target.value.replace(/\D/g, '');
+    const valor = e.target.value;
     if (!valor) {
       setForm(prev => ({ ...prev, tempo: '' }));
       return;
     }
-    const padded = valor.padStart(6, '0').slice(-6);
-    const mm = padded.slice(0, 2);
-    const ss = padded.slice(2, 4);
-    const ms = padded.slice(4, 6);
-    setForm(prev => ({ ...prev, tempo: `${mm}:${ss}.${ms}` }));
+
+    if (/^\d{0,6}$/.test(valor) || /^\d{1,2}:\d{0,2}(?:\.\d{0,2})?$/.test(valor)) {
+      setForm(prev => ({ ...prev, tempo: valor }));
+      return;
+    }
+
+    const apenasDigitos = valor.replace(/\D/g, '').slice(0, 6);
+    setForm(prev => ({ ...prev, tempo: apenasDigitos }));
   };
 
   const salvarRegistro = (e) => {
     e.preventDefault();
+    const tempoNormalizado = normalizeTempoInput(form.tempo);
+    if (!tempoNormalizado) {
+      alert('Tempo inválido. Use MM:SS.CC ou 6 dígitos (ex: 000000).');
+      return;
+    }
+
+    const formFinal = { ...form, tempo: tempoNormalizado };
+
     if (editandoId) {
-      setRegistros(prev => prev.map(r => r.id === editandoId ? { ...form, id: editandoId } : r));
+      setRegistros(prev => prev.map(r => r.id === editandoId ? { ...formFinal, id: editandoId } : r));
     } else {
-      setRegistros(prev => [...prev, { ...form, id: Date.now() }]);
+      setRegistros(prev => [...prev, { ...formFinal, id: Date.now() }]);
     }
     fecharModal();
   };
@@ -348,10 +387,27 @@ export default function App() {
               <select 
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 value={filtros[campo]}
-                onChange={e => setFiltros({...filtros, [campo]: e.target.value})}
+                onChange={e => {
+                  const valor = e.target.value;
+                  if (campo === 'estilo') {
+                    const provasDoEstilo = valor ? (PROVAS_POR_ESTILO[valor] || []) : PROVAS;
+                    setFiltros({
+                      ...filtros,
+                      estilo: valor,
+                      prova: provasDoEstilo.includes(filtros.prova) ? filtros.prova : ''
+                    });
+                    return;
+                  }
+                  setFiltros({...filtros, [campo]: valor});
+                }}
               >
                 <option value="">Todos</option>
-                {(campo === 'prova' ? PROVAS : campo === 'estilo' ? ESTILOS : MODOS).map(opt => (
+                {(campo === 'prova'
+                  ? (filtros.estilo ? (PROVAS_POR_ESTILO[filtros.estilo] || []) : PROVAS)
+                  : campo === 'estilo'
+                    ? ESTILOS
+                    : MODOS
+                ).map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
@@ -599,7 +655,15 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
-                <input required type="text" placeholder="00:00.00" className="w-full p-2 border rounded-lg" value={form.tempo} onChange={handleTempoChange} />
+                <input
+                  required
+                  type="text"
+                  placeholder="000000 ou 00:00.00"
+                  className="w-full p-2 border rounded-lg"
+                  value={form.tempo}
+                  onChange={handleTempoChange}
+                  onBlur={() => setForm(prev => ({ ...prev, tempo: normalizeTempoInput(prev.tempo) }))}
+                />
               </div>
 
               <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t">
