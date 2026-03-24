@@ -135,6 +135,12 @@ function normalizeName(name) {
   }
 }
 
+function looksLikeCode(value) {
+  if (!value) return false;
+  const candidate = String(value).trim();
+  return /^[A-Za-z]{1,4}-?\d+$/i.test(candidate) || candidate.toUpperCase().startsWith('NC') || candidate.toUpperCase().startsWith('ID');
+}
+
 function normalizeGenero(val) {
   if (val === null || val === undefined) return '';
   const v = String(val).trim();
@@ -315,6 +321,7 @@ export async function parseExcelFile(file) {
 
     const alunosByCode = {};
     const alunosByName = {};
+    const alunosArray = [];
 
     if (alunosSheet) {
       try {
@@ -337,7 +344,12 @@ export async function parseExcelFile(file) {
           const genderVal = flattenCellValue(row.getCell(colMapA.genero || 5).value);
           const birthIso = excelDateToISO(birthVal);
 
-          const info = { birth: birthIso || '', categoria: catVal ? String(catVal).trim() : '', genero: normalizeGenero(genderVal) };
+          const info = {
+            birth: birthIso || '',
+            categoria: catVal ? String(catVal).trim() : '',
+            genero: normalizeGenero(genderVal),
+            nome: nameVal ? String(nameVal).trim() : ''
+          };
 
           if (codeVal) {
             const key = String(codeVal).trim();
@@ -385,7 +397,6 @@ export async function parseExcelFile(file) {
     
     // Processa cada linha (começando da linha 2)
     const registros = [];
-    const alunosArray = [];
     
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       // Pula a linha de cabeçalho
@@ -409,6 +420,32 @@ export async function parseExcelFile(file) {
       const provaVal = flattenCellValue(row.getCell(colMap.prova || 5).value);
       const estiloVal = flattenCellValue(row.getCell(colMap.estilo || 6).value);
       const modoVal = flattenCellValue(row.getCell(colMap.modo || 7).value);
+      const codigoVal = colMap.codigo ? flattenCellValue(row.getCell(colMap.codigo).value) : '';
+      const codigoStr = codigoVal ? String(codigoVal).trim() : '';
+
+      let nomeFinal = nomeStr;
+      let categoriaFromAluno;
+      let generoFromAluno;
+
+      // Se houver código na linha, usar DBalunos como fonte de verdade para nome/categoria/gênero
+      if (codigoStr) {
+        const foundByCode = alunosByCode[codigoStr] || alunosByCode[codigoStr.toUpperCase()] || alunosByCode[codigoStr.toLowerCase()];
+        if (foundByCode && foundByCode.nome && (!nomeFinal || looksLikeCode(nomeFinal))) {
+          nomeFinal = foundByCode.nome;
+        }
+        if (foundByCode && foundByCode.categoria) categoriaFromAluno = foundByCode.categoria;
+        if (foundByCode && foundByCode.genero) generoFromAluno = foundByCode.genero;
+      }
+
+      // Se a coluna de nome vier com código (ex.: NC-0038), substituir pelo nome do DBalunos
+      if (looksLikeCode(nomeFinal)) {
+        const foundByCodeInName = alunosByCode[nomeFinal] || alunosByCode[nomeFinal.toUpperCase()] || alunosByCode[nomeFinal.toLowerCase()];
+        if (foundByCodeInName && foundByCodeInName.nome) {
+          nomeFinal = foundByCodeInName.nome;
+        }
+        if (!categoriaFromAluno && foundByCodeInName && foundByCodeInName.categoria) categoriaFromAluno = foundByCodeInName.categoria;
+        if (!generoFromAluno && foundByCodeInName && foundByCodeInName.genero) generoFromAluno = foundByCodeInName.genero;
+      }
 
       // Normaliza datas vindas da planilha
       let dataNiso = excelDateToISO(dataNascimentoVal);
@@ -425,17 +462,18 @@ export async function parseExcelFile(file) {
             console.log(`Fallback: preenchi dataNascimento por código ${cand} -> ${dataNiso}`);
           }
           // Também tentar preencher categoria e gênero a partir do DBalunos
-          var categoriaFromAluno = found && found.categoria ? found.categoria : undefined;
-          var generoFromAluno = found && found.genero ? found.genero : undefined;
+          if (!categoriaFromAluno && found && found.categoria) categoriaFromAluno = found.categoria;
+          if (!generoFromAluno && found && found.genero) generoFromAluno = found.genero;
+          if ((!nomeFinal || looksLikeCode(nomeFinal)) && found && found.nome) nomeFinal = found.nome;
         }
       }
 
-      if ((!dataNiso || dataNiso === '') && nomeStr) {
-        const nameKey = normalizeName(nomeStr);
+      if ((!dataNiso || dataNiso === '') && nomeFinal && !looksLikeCode(nomeFinal)) {
+        const nameKey = normalizeName(nomeFinal);
         const foundByName = alunosByName[nameKey];
         if (foundByName && foundByName.birth) {
           dataNiso = foundByName.birth;
-          console.log(`Fallback: preenchi dataNascimento por nome ${nomeStr} -> ${dataNiso}`);
+          console.log(`Fallback: preenchi dataNascimento por nome ${nomeFinal} -> ${dataNiso}`);
         }
         if (foundByName && foundByName.categoria) {
           categoriaFromAluno = foundByName.categoria;
@@ -470,7 +508,7 @@ export async function parseExcelFile(file) {
       const finalGenero = (typeof generoFromAluno === 'string' && generoFromAluno.trim() !== '') ? generoFromAluno : (generoFromCell || '-');
 
       const registroObj = {
-        nome: nomeStr,
+        nome: nomeFinal,
         dataNascimento: dataNiso,
         dataRegistro: dataRiso,
         tempo: tempo,
