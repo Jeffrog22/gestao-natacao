@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Trash2, 
   RefreshCcw, 
@@ -11,21 +11,38 @@ import {
   FileUp
 } from 'lucide-react';
 import { parseExcelFile } from './utils/excel';
+import { useAlunosSupabase } from './hooks/useAlunosSupabase';
 import * as ExcelJS from 'exceljs';
 
 // --- Configurações e Constantes ---
 
-const PROVAS = ['25m', '50m', '100m', '200m', '400m', '800m', '1500m'];
 const ESTILOS = ['Livre', 'Costas', 'Peito', 'Borboleta', 'Medley'];
+const PROVAS_POR_ESTILO = {
+  Livre: ['25m', '50m', '100m', '200m', '400m', '800m', '1500m'],
+  Costas: ['25m', '50m', '100m', '200m', '400m'],
+  Peito: ['25m', '50m', '100m', '200m', '400m'],
+  Borboleta: ['25m', '50m', '100m', '200m', '400m'],
+  Medley: ['100m', '200m', '400m']
+};
+const PROVAS = Array.from(new Set(Object.values(PROVAS_POR_ESTILO).flat()));
 const MODOS = ['Aula', 'Festival', 'Competição']; 
 
-// Base de dados Mock de Atletas
-const BASE_ATLETAS = [
-  { id: 1, nome: 'Ana Silva', Aniversário: '2010-05-15' },
-  { id: 2, nome: 'Carlos Souza', Aniversário: '2008-02-10' },
-  { id: 3, nome: 'Beatriz Costa', Aniversário: '2012-08-20' },
-  { id: 4, nome: 'Daniel Oliveira', Aniversário: '2009-11-05' },
-];
+const STORAGE_KEYS = {
+  registros: 'registro-tempos:registros',
+  alunos: 'registro-tempos:alunos',
+  lixeira: 'registro-tempos:lixeira'
+};
+
+const loadFromStorage = (key, fallback = []) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+};
 
 // Lógica de Categorias CBDA (Baseada na idade na época do registro)
 const calcularCategoria = (dataNascimento, dataRegistro) => {
@@ -45,23 +62,66 @@ const calcularCategoria = (dataNascimento, dataRegistro) => {
   return 'Sênior';
 };
 
+const formatTempoFromDigits = (digits) => {
+  const padded = String(digits).padStart(6, '0').slice(-6);
+  const mm = padded.slice(0, 2);
+  const ss = padded.slice(2, 4);
+  const cs = padded.slice(4, 6);
+  return `${mm}:${ss}.${cs}`;
+};
+
+const normalizeTempoInput = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  if (/^\d{1,6}$/.test(raw)) {
+    return formatTempoFromDigits(raw);
+  }
+
+  const match = raw.match(/^(\d{1,2}):(\d{1,2})(?:\.(\d{1,2}))?$/);
+  if (match) {
+    const mm = match[1].padStart(2, '0');
+    const ss = match[2].padStart(2, '0');
+    const cs = (match[3] || '0').padStart(2, '0');
+    return `${mm}:${ss}.${cs}`;
+  }
+
+  const digits = raw.replace(/\D/g, '').slice(-6);
+  return digits ? formatTempoFromDigits(digits) : '';
+};
+
+const isTempoValido = (tempo) => {
+  if (!tempo) return false;
+  const match = tempo.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
+  if (!match) return false;
+  const segundos = Number(match[2]);
+  const centesimos = Number(match[3]);
+  return segundos >= 0 && segundos <= 59 && centesimos >= 0 && centesimos <= 99;
+};
+
 // --- Componente Principal ---
 
 export default function App() {
   // Estado dos Dados Iniciais
-  const [registros, setRegistros] = useState([
-    { id: 1, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2021-06-20', tempo: '00:32.50', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
-    { id: 2, nome: 'Ana Silva', dataNascimento: '2010-05-15', dataRegistro: '2023-11-10', tempo: '00:29.10', prova: '50m', estilo: 'Livre', modo: 'Competição', genero: 'F' },
-    { id: 3, nome: 'Carlos Souza', dataNascimento: '2008-02-10', dataRegistro: '2023-05-05', tempo: '01:05.20', prova: '100m', estilo: 'Costas', modo: 'Aula', genero: 'M' },
-  ]);
+  const [registros, setRegistros] = useState(() => loadFromStorage(STORAGE_KEYS.registros, []));
 
-  const [alunos, setAlunos] = useState(BASE_ATLETAS.map(a => ({ nome: a.nome, dataNascimento: a.Aniversário || '', codigo: a.id, genero: '' })));
+  const [alunosLocais, setAlunosLocais] = useState(() => loadFromStorage(STORAGE_KEYS.alunos, []));
 
-  const [lixeira, setLixeira] = useState([]);
+  const { alunos: alunosSupabase, loading: supabaseLoading } = useAlunosSupabase();
+
+  // Merge: Supabase como fonte primária, localStorage como fallback
+  const alunos = useMemo(() => {
+    if (alunosSupabase.length > 0) return alunosSupabase;
+    return alunosLocais;
+  }, [alunosSupabase, alunosLocais]);
+
+  const [lixeira, setLixeira] = useState(() => loadFromStorage(STORAGE_KEYS.lixeira, []));
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
 
   // Estado de Filtros e Ordenação
   const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '' });
+  const [buscaDropdownOpen, setBuscaDropdownOpen] = useState(false);
+  const [buscaIndiceAtivo, setBuscaIndiceAtivo] = useState(-1);
   const [generoDropdownOpen, setGeneroDropdownOpen] = useState(false);
   // add genero to filtros
   if (!('genero' in filtros)) filtros.genero = '';
@@ -74,15 +134,11 @@ export default function App() {
   const [form, setForm] = useState({
     nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: ''
   });
-
-  // Ref para input de arquivo
-  const fileInputRef = useRef(null);
+  const [alunoBusca, setAlunoBusca] = useState('');
+  const [autocompleteAberto, setAutocompleteAberto] = useState(false);
+  const [indiceAlunoAtivo, setIndiceAlunoAtivo] = useState(-1);
 
   // --- Lógica de Negócio e Manipuladores ---
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
@@ -98,7 +154,7 @@ export default function App() {
       console.log('alunosImportados (preview):', JSON.stringify(alunosImportados.slice(0, 5), null, 2));
 
       if (alunosImportados.length > 0) {
-        setAlunos(prev => {
+        setAlunosLocais(prev => {
           // merge unique by normalized name or codigo
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
@@ -169,24 +225,36 @@ export default function App() {
   };
 
   const handleTempoChange = (e) => {
-    const valor = e.target.value.replace(/\D/g, '');
+    const valor = e.target.value;
+    const valorLimpo = valor.replace(/[^\d:.]/g, '');
+
+    const formatoNumerico = /^\d{0,6}$/;
+    const formatoComSeparadores = /^\d{0,2}(?::\d{0,2})?(?:\.\d{0,2})?$/;
+
     if (!valor) {
       setForm(prev => ({ ...prev, tempo: '' }));
       return;
     }
-    const padded = valor.padStart(6, '0').slice(-6);
-    const mm = padded.slice(0, 2);
-    const ss = padded.slice(2, 4);
-    const ms = padded.slice(4, 6);
-    setForm(prev => ({ ...prev, tempo: `${mm}:${ss}.${ms}` }));
+
+    if (formatoNumerico.test(valorLimpo) || formatoComSeparadores.test(valorLimpo)) {
+      setForm(prev => ({ ...prev, tempo: valorLimpo }));
+    }
   };
 
   const salvarRegistro = (e) => {
     e.preventDefault();
+    const tempoNormalizado = normalizeTempoInput(form.tempo);
+    if (!tempoNormalizado || !isTempoValido(tempoNormalizado)) {
+      alert('Tempo inválido. Use MM:SS.CC ou 6 dígitos (ex: 000000).');
+      return;
+    }
+
+    const formFinal = { ...form, tempo: tempoNormalizado };
+
     if (editandoId) {
-      setRegistros(prev => prev.map(r => r.id === editandoId ? { ...form, id: editandoId } : r));
+      setRegistros(prev => prev.map(r => r.id === editandoId ? { ...formFinal, id: editandoId } : r));
     } else {
-      setRegistros(prev => [...prev, { ...form, id: Date.now() }]);
+      setRegistros(prev => [...prev, { ...formFinal, id: Date.now() }]);
     }
     fecharModal();
   };
@@ -222,6 +290,9 @@ export default function App() {
 
   const abrirModalEdicao = (registro) => {
     setForm(registro);
+    setAlunoBusca(registro.nome || '');
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
     setEditandoId(registro.id);
     setModalAberto(true);
   };
@@ -230,7 +301,61 @@ export default function App() {
     setModalAberto(false);
     setEditandoId(null);
     setForm({ nome: '', dataNascimento: '', dataRegistro: '', tempo: '', prova: '', estilo: '', modo: '', genero: '' });
+    setAlunoBusca('');
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
   };
+
+  const limparDadosLocais = () => {
+    const ok = window.confirm('Limpar todos os alunos salvos localmente (importados de Excel)?\n\nOs alunos do Supabase continuarão disponíveis.');
+    if (!ok) return;
+    setAlunosLocais([]);
+    localStorage.removeItem(STORAGE_KEYS.alunos);
+  };
+
+  const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
+  const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
+  const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
+  const alunosSugeridos = useMemo(() => {
+    const nomesUnicos = Array.from(new Set(alunos.map(a => (a.nome || '').trim()).filter(Boolean)));
+    const termo = alunoBusca.trim().toLowerCase();
+    if (!termo) return nomesUnicos.slice(0, 8);
+    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+  }, [alunos, alunoBusca]);
+
+  const nomesBuscaSugeridos = useMemo(() => {
+    const nomesRegistros = registros.map(r => (r.nome || '').trim()).filter(Boolean);
+    const nomesAlunos = alunos.map(a => (a.nome || '').trim()).filter(Boolean);
+    const nomesUnicos = Array.from(new Set([...nomesRegistros, ...nomesAlunos]));
+    const termo = (filtros.nome || '').trim().toLowerCase();
+    if (!termo) return nomesUnicos.slice(0, 8);
+    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+  }, [registros, alunos, filtros.nome]);
+
+  const selecionarAluno = (nomeSelecionado) => {
+    const aluno = alunos.find(a => a.nome === nomeSelecionado);
+    setForm(prev => ({
+      ...prev,
+      nome: nomeSelecionado,
+      dataNascimento: aluno?.dataNascimento || '',
+      genero: aluno?.genero || ''
+    }));
+    setAlunoBusca(nomeSelecionado);
+    setAutocompleteAberto(false);
+    setIndiceAlunoAtivo(-1);
+  };
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.registros, JSON.stringify(registros));
+  }, [registros]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(alunosLocais));
+  }, [alunosLocais]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.lixeira, JSON.stringify(lixeira));
+  }, [lixeira]);
 
   // --- Processamento de Dados (Memoized) ---
 
@@ -270,22 +395,27 @@ export default function App() {
         <header className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-blue-900">Gestão de Tempos de Natação</h1>
-            <p className="text-gray-500">Acompanhamento histórico e evolução de atletas</p>
+            <p className="text-gray-500">
+              Acompanhamento histórico e evolução de atletas
+              {supabaseLoading && <span className="ml-2 text-xs text-blue-500">● Carregando alunos...</span>}
+              {!supabaseLoading && alunosSupabase.length > 0 && <span className="ml-2 text-xs text-green-600">● {alunosSupabase.length} alunos sincronizados</span>}
+              {!supabaseLoading && alunosSupabase.length === 0 && alunosLocais.length > 0 && <span className="ml-2 text-xs text-amber-600">● {alunosLocais.length} alunos locais</span>}
+            </p>
           </div>
           <div className="flex gap-3">
             <input
+              id="import-xlsx-input"
               type="file"
-              ref={fileInputRef}
               onChange={handleFileChange}
               accept=".xlsx,.xls"
               style={{ display: 'none' }}
             />
-            <button 
-              onClick={handleImportClick}
+            <label
+              htmlFor="import-xlsx-input"
               className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
             >
               <FileUp size={20} /> Importar XLSX
-            </button>
+            </label>
             <button 
               onClick={exportRegistrosToExcel}
               className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
@@ -298,6 +428,14 @@ export default function App() {
             >
               <Plus size={20} /> Novo Registro
             </button>
+            {alunosLocais.length > 0 && (
+              <button 
+                onClick={limparDadosLocais}
+                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm"
+              >
+                Limpar Dados Locais
+              </button>
+            )}
           </div>
         </header>
 
@@ -328,8 +466,58 @@ export default function App() {
                 placeholder="Nome do atleta..." 
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 value={filtros.nome}
-                onChange={e => setFiltros({...filtros, nome: e.target.value})}
+                onFocus={() => {
+                  setBuscaDropdownOpen(true);
+                  setBuscaIndiceAtivo(-1);
+                }}
+                onBlur={() => setTimeout(() => setBuscaDropdownOpen(false), 120)}
+                onChange={e => {
+                  setFiltros({...filtros, nome: e.target.value});
+                  setBuscaDropdownOpen(true);
+                  setBuscaIndiceAtivo(-1);
+                }}
+                onKeyDown={e => {
+                  if (!buscaDropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                    setBuscaDropdownOpen(true);
+                  }
+                  if (!nomesBuscaSugeridos.length) return;
+
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    setBuscaIndiceAtivo(prev => (prev + 1) % nomesBuscaSugeridos.length);
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    setBuscaIndiceAtivo(prev => (prev <= 0 ? nomesBuscaSugeridos.length - 1 : prev - 1));
+                  } else if (e.key === 'Enter' && buscaIndiceAtivo >= 0) {
+                    e.preventDefault();
+                    setFiltros({ ...filtros, nome: nomesBuscaSugeridos[buscaIndiceAtivo] });
+                    setBuscaDropdownOpen(false);
+                    setBuscaIndiceAtivo(-1);
+                  } else if (e.key === 'Escape') {
+                    setBuscaDropdownOpen(false);
+                    setBuscaIndiceAtivo(-1);
+                  }
+                }}
               />
+
+              {buscaDropdownOpen && nomesBuscaSugeridos.length > 0 && (
+                <div className="absolute z-40 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                  {nomesBuscaSugeridos.map((nome, idx) => (
+                    <button
+                      key={`${nome}-${idx}`}
+                      type="button"
+                      onMouseDown={() => {
+                        setFiltros({ ...filtros, nome });
+                        setBuscaDropdownOpen(false);
+                        setBuscaIndiceAtivo(-1);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm ${idx === buscaIndiceAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                    >
+                      {nome}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           
@@ -339,10 +527,27 @@ export default function App() {
               <select 
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                 value={filtros[campo]}
-                onChange={e => setFiltros({...filtros, [campo]: e.target.value})}
+                onChange={e => {
+                  const valor = e.target.value;
+                  if (campo === 'estilo') {
+                    const provasDoEstilo = valor ? (PROVAS_POR_ESTILO[valor] || []) : PROVAS;
+                    setFiltros({
+                      ...filtros,
+                      estilo: valor,
+                      prova: provasDoEstilo.includes(filtros.prova) ? filtros.prova : ''
+                    });
+                    return;
+                  }
+                  setFiltros({...filtros, [campo]: valor});
+                }}
               >
                 <option value="">Todos</option>
-                {(campo === 'prova' ? PROVAS : campo === 'estilo' ? ESTILOS : MODOS).map(opt => (
+                {(campo === 'prova'
+                  ? (filtros.estilo ? (PROVAS_POR_ESTILO[filtros.estilo] || []) : PROVAS)
+                  : campo === 'estilo'
+                    ? ESTILOS
+                    : MODOS
+                ).map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
@@ -514,23 +719,68 @@ export default function App() {
             <form onSubmit={salvarRegistro} className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Aluno</label>
-                <select 
-                  required 
-                  className="w-full p-2 border rounded-lg bg-white" 
-                  value={form.nome} 
-                  onChange={e => {
-                    const nomeSelecionado = e.target.value;
-                    const atleta = alunos.find(a => a.nome === nomeSelecionado);
-                    const dataAniversário = atleta ? (atleta.dataNascimento || '') : '';
-                    const genero = atleta ? (atleta.genero || '') : '';
-                    setForm({...form, nome: nomeSelecionado, dataNascimento: dataAniversário, genero});
-                  }}
-                >
-                  <option value="">Selecione um atleta</option>
-                  {alunos.map((atleta, idx) => (
-                    <option key={idx} value={atleta.nome}>{atleta.nome}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    required
+                    type="text"
+                    className="w-full p-2 border rounded-lg bg-white"
+                    placeholder="Digite para buscar aluno..."
+                    value={alunoBusca}
+                    onFocus={() => {
+                      setAutocompleteAberto(true);
+                      setIndiceAlunoAtivo(-1);
+                    }}
+                    onBlur={() => {
+                      setTimeout(() => setAutocompleteAberto(false), 120);
+                    }}
+                    onChange={e => {
+                      const valor = e.target.value;
+                      setAlunoBusca(valor);
+                      setForm(prev => ({ ...prev, nome: valor }));
+                      const encontrado = alunos.find(a => a.nome === valor);
+                      if (encontrado) {
+                        setForm(prev => ({ ...prev, nome: valor, dataNascimento: encontrado.dataNascimento || '', genero: encontrado.genero || '' }));
+                      }
+                      setAutocompleteAberto(true);
+                      setIndiceAlunoAtivo(-1);
+                    }}
+                    onKeyDown={e => {
+                      if (!autocompleteAberto && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                        setAutocompleteAberto(true);
+                      }
+                      if (!alunosSugeridos.length) return;
+
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setIndiceAlunoAtivo(prev => (prev + 1) % alunosSugeridos.length);
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setIndiceAlunoAtivo(prev => (prev <= 0 ? alunosSugeridos.length - 1 : prev - 1));
+                      } else if (e.key === 'Enter' && indiceAlunoAtivo >= 0) {
+                        e.preventDefault();
+                        selecionarAluno(alunosSugeridos[indiceAlunoAtivo]);
+                      } else if (e.key === 'Escape') {
+                        setAutocompleteAberto(false);
+                        setIndiceAlunoAtivo(-1);
+                      }
+                    }}
+                  />
+
+                  {autocompleteAberto && alunosSugeridos.length > 0 && (
+                    <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                      {alunosSugeridos.map((nome, idx) => (
+                        <button
+                          key={`${nome}-${idx}`}
+                          type="button"
+                          onMouseDown={() => selecionarAluno(nome)}
+                          className={`w-full text-left px-3 py-2 text-sm ${idx === indiceAlunoAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                        >
+                          {nome}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -554,7 +804,21 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Estilo</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.estilo} onChange={e => setForm({...form, estilo: e.target.value})}>
+                <select
+                  required
+                  className="w-full p-2 border rounded-lg bg-white"
+                  value={form.estilo}
+                  onChange={e => {
+                    const novoEstilo = e.target.value;
+                    const provasDoEstilo = PROVAS_POR_ESTILO[novoEstilo] || [];
+                    const provaAtualValida = provasDoEstilo.includes(form.prova);
+                    setForm({
+                      ...form,
+                      estilo: novoEstilo,
+                      prova: provaAtualValida ? form.prova : ''
+                    });
+                  }}
+                >
                   <option value="">Selecione</option>
                   {ESTILOS.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
@@ -562,15 +826,32 @@ export default function App() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Prova</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.prova} onChange={e => setForm({...form, prova: e.target.value})}>
-                  <option value="">Selecione</option>
-                  {PROVAS.map(p => <option key={p} value={p}>{p}</option>)}
+                <select
+                  required
+                  className="w-full p-2 border rounded-lg bg-white"
+                  value={form.prova}
+                  onChange={e => setForm({...form, prova: e.target.value})}
+                  disabled={!form.estilo}
+                >
+                  <option value="">{form.estilo ? 'Selecione' : 'Selecione o estilo primeiro'}</option>
+                  {provasDisponiveisForm.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
-                <input required type="text" placeholder="00:00.00" className="w-full p-2 border rounded-lg" value={form.tempo} onChange={handleTempoChange} />
+                <input
+                  required
+                  type="text"
+                  placeholder="000000 ou 00:00.00"
+                  className={`w-full p-2 border rounded-lg ${tempoInvalidoNoForm ? 'border-red-500 ring-1 ring-red-200' : ''}`}
+                  value={form.tempo}
+                  onChange={handleTempoChange}
+                  onBlur={() => setForm(prev => ({ ...prev, tempo: normalizeTempoInput(prev.tempo) }))}
+                />
+                {tempoInvalidoNoForm && (
+                  <p className="mt-1 text-xs text-red-600">Tempo inválido (segundos devem ficar entre 00 e 59).</p>
+                )}
               </div>
 
               <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t">

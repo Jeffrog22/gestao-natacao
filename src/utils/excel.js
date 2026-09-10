@@ -121,18 +121,10 @@ function flattenCellValue(val) {
   return '';
 }
 
-function normalizeName(name) {
-  if (!name) return '';
-  try {
-    return String(name)
-      .trim()
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/\p{Diacritic}/gu, '')
-      .replace(/\s+/g, ' ');
-  } catch (e) {
-    return String(name).trim().toLowerCase();
-  }
+function looksLikeCode(value) {
+  if (!value) return false;
+  const candidate = String(value).trim();
+  return /^[A-Za-z]{1,4}-?\d+$/i.test(candidate) || candidate.toUpperCase().startsWith('NC') || candidate.toUpperCase().startsWith('ID');
 }
 
 function normalizeGenero(val) {
@@ -183,7 +175,6 @@ function parseTempoCell(val) {
   if (!val && val !== 0) return '';
   
   // Log para debug (remover em produção se necessário)
-  console.log('parseTempoCell - tipo:', typeof val, 'valor:', val);
   
   // ExcelJS retorna Date para valores de tempo
   if (val instanceof Date) {
@@ -196,7 +187,6 @@ function parseTempoCell(val) {
     // Converter tudo para segundos totais
     const totalSeconds = hours * 3600 + minutes * 60 + seconds + milliseconds / 1000;
     const result = formatSecondsToTempo(totalSeconds);
-    console.log('parseTempoCell - Date convertido para:', result);
     return result;
   }
   
@@ -207,7 +197,6 @@ function parseTempoCell(val) {
     if (val < 1) {
       const seconds = val * 86400;
       const result = formatSecondsToTempo(seconds);
-      console.log('parseTempoCell - número < 1 convertido para:', result);
       return result;
     }
     // Se é um número maior, tratar como formato MMSSCC (ex: 003633 = 00:36.33, 13545 = 01:35.45)
@@ -217,7 +206,6 @@ function parseTempoCell(val) {
       const ss = numStr.substring(2, 4);
       const cc = numStr.substring(4, 6);
       const result = `${mm}:${ss}.${cc}`;
-      console.log('parseTempoCell - número MMSSCC convertido para:', result);
       return result;
     }
   }
@@ -232,7 +220,6 @@ function parseTempoCell(val) {
       const mm = parts[0].padStart(2, '0');
       const [ss, cs] = parts[1].split('.');
       const result = `${mm}:${ss}.${cs.padStart(2, '0')}`;
-      console.log('parseTempoCell - string mm:ss.SS convertido para:', result);
       return result;
     }
     
@@ -243,7 +230,6 @@ function parseTempoCell(val) {
       const ss = numStr.substring(2, 4);
       const cc = numStr.substring(4, 6);
       const result = `${mm}:${ss}.${cc}`;
-      console.log('parseTempoCell - string MMSSCC convertido para:', result);
       return result;
     }
     
@@ -251,18 +237,15 @@ function parseTempoCell(val) {
     if (trimmed.match(/^\d{1,3}\.\d{1,2}$/)) {
       const seconds = parseFloat(trimmed);
       const result = formatSecondsToTempo(seconds);
-      console.log('parseTempoCell - string ss.SS convertido para:', result);
       return result;
     }
     
     // Se já está no formato correto
     if (trimmed.match(/^\d{2}:\d{2}\.\d{2}$/)) {
-      console.log('parseTempoCell - já no formato correto:', trimmed);
       return trimmed;
     }
   }
   
-  console.log('parseTempoCell - não conseguiu parsear, retornando vazio');
   return '';
 }
 
@@ -278,9 +261,6 @@ export async function parseExcelFile(file) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     
-    // Log de todas as abas disponíveis para debug
-    console.log('Abas disponíveis no arquivo:', workbook.worksheets.map(ws => ws.name));
-    
     // Procura pela aba "DBregistros" ou "DB_registros" especificamente
     let worksheet = workbook.getWorksheet('DBregistros');
     
@@ -295,7 +275,6 @@ export async function parseExcelFile(file) {
     
     // Se ainda não encontrou, usa a primeira planilha
     if (!worksheet) {
-      console.warn('Aba "DBregistros" ou "DB_registros" não encontrada, usando primeira planilha');
       worksheet = workbook.worksheets[0];
     }
     
@@ -303,7 +282,6 @@ export async function parseExcelFile(file) {
       throw new Error('Nenhuma planilha encontrada no arquivo');
     }
     
-    console.log('Usando planilha:', worksheet.name);
 
     // --- Tentar carregar DBalunos para mapear código/nome -> dataNascimento ---
     const alunosSheetNames = ['DBalunos','DB_alunos','DB_Alunos','db_alunos','Alunos','alunos','DBAlunos'];
@@ -314,7 +292,7 @@ export async function parseExcelFile(file) {
     }
 
     const alunosByCode = {};
-    const alunosByName = {};
+    const alunosArray = [];
 
     if (alunosSheet) {
       try {
@@ -337,16 +315,18 @@ export async function parseExcelFile(file) {
           const genderVal = flattenCellValue(row.getCell(colMapA.genero || 5).value);
           const birthIso = excelDateToISO(birthVal);
 
-          const info = { birth: birthIso || '', categoria: catVal ? String(catVal).trim() : '', genero: normalizeGenero(genderVal) };
+          const info = {
+            birth: birthIso || '',
+            categoria: catVal ? String(catVal).trim() : '',
+            genero: normalizeGenero(genderVal),
+            nome: nameVal ? String(nameVal).trim() : ''
+          };
 
           if (codeVal) {
             const key = String(codeVal).trim();
             alunosByCode[key] = info;
             alunosByCode[key.toUpperCase()] = info;
             alunosByCode[key.toLowerCase()] = info;
-          }
-          if (nameVal) {
-            alunosByName[normalizeName(nameVal)] = info;
           }
           alunosArray.push({
             codigo: codeVal ? String(codeVal).trim() : '',
@@ -357,12 +337,9 @@ export async function parseExcelFile(file) {
           });
         });
 
-        console.log('Mapeamento DBalunos carregado: codes=', Object.keys(alunosByCode).length, 'names=', Object.keys(alunosByName).length);
-      } catch (err) {
-        console.warn('Falha ao processar DBalunos:', err.message);
+      } catch {
+        void alunosArray;
       }
-    } else {
-      console.log('Aba DBalunos não encontrada — fallback por nome estará indisponível');
     }
     
     // Lê os cabeçalhos da primeira linha
@@ -385,7 +362,6 @@ export async function parseExcelFile(file) {
     
     // Processa cada linha (começando da linha 2)
     const registros = [];
-    const alunosArray = [];
     
     worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       // Pula a linha de cabeçalho
@@ -395,9 +371,7 @@ export async function parseExcelFile(file) {
 
       const tempoRaw = row.getCell(colMap.tempo || 4).value;
       const tempoVal = flattenCellValue(tempoRaw);
-      console.log(`Linha ${rowNumber} - Nome: ${nomeStr}, Tempo raw:`, tempoVal);
       const tempo = parseTempoCell(tempoVal);
-      console.log(`Linha ${rowNumber} - Tempo processado:`, tempo);
 
       // Filtrar linhas vazias (sem nome e sem tempo)
       if (!nomeStr && !tempo) {
@@ -409,6 +383,32 @@ export async function parseExcelFile(file) {
       const provaVal = flattenCellValue(row.getCell(colMap.prova || 5).value);
       const estiloVal = flattenCellValue(row.getCell(colMap.estilo || 6).value);
       const modoVal = flattenCellValue(row.getCell(colMap.modo || 7).value);
+      const codigoVal = colMap.codigo ? flattenCellValue(row.getCell(colMap.codigo).value) : '';
+      const codigoStr = codigoVal ? String(codigoVal).trim() : '';
+
+      let nomeFinal = nomeStr;
+      let categoriaFromAluno;
+      let generoFromAluno;
+
+      // Se houver código na linha, usar DBalunos como fonte de verdade para nome/categoria/gênero
+      if (codigoStr) {
+        const foundByCode = alunosByCode[codigoStr] || alunosByCode[codigoStr.toUpperCase()] || alunosByCode[codigoStr.toLowerCase()];
+        if (foundByCode && foundByCode.nome && (!nomeFinal || looksLikeCode(nomeFinal))) {
+          nomeFinal = foundByCode.nome;
+        }
+        if (foundByCode && foundByCode.categoria) categoriaFromAluno = foundByCode.categoria;
+        if (foundByCode && foundByCode.genero) generoFromAluno = foundByCode.genero;
+      }
+
+      // Se a coluna de nome vier com código (ex.: NC-0038), substituir pelo nome do DBalunos
+      if (looksLikeCode(nomeFinal)) {
+        const foundByCodeInName = alunosByCode[nomeFinal] || alunosByCode[nomeFinal.toUpperCase()] || alunosByCode[nomeFinal.toLowerCase()];
+        if (foundByCodeInName && foundByCodeInName.nome) {
+          nomeFinal = foundByCodeInName.nome;
+        }
+        if (!categoriaFromAluno && foundByCodeInName && foundByCodeInName.categoria) categoriaFromAluno = foundByCodeInName.categoria;
+        if (!generoFromAluno && foundByCodeInName && foundByCodeInName.genero) generoFromAluno = foundByCodeInName.genero;
+      }
 
       // Normaliza datas vindas da planilha
       let dataNiso = excelDateToISO(dataNascimentoVal);
@@ -422,26 +422,11 @@ export async function parseExcelFile(file) {
           const found = alunosByCode[cand] || alunosByCode[cand.toUpperCase()] || alunosByCode[cand.toLowerCase()];
           if (found && found.birth) {
             dataNiso = found.birth;
-            console.log(`Fallback: preenchi dataNascimento por código ${cand} -> ${dataNiso}`);
           }
           // Também tentar preencher categoria e gênero a partir do DBalunos
-          var categoriaFromAluno = found && found.categoria ? found.categoria : undefined;
-          var generoFromAluno = found && found.genero ? found.genero : undefined;
-        }
-      }
-
-      if ((!dataNiso || dataNiso === '') && nomeStr) {
-        const nameKey = normalizeName(nomeStr);
-        const foundByName = alunosByName[nameKey];
-        if (foundByName && foundByName.birth) {
-          dataNiso = foundByName.birth;
-          console.log(`Fallback: preenchi dataNascimento por nome ${nomeStr} -> ${dataNiso}`);
-        }
-        if (foundByName && foundByName.categoria) {
-          categoriaFromAluno = foundByName.categoria;
-        }
-        if (foundByName && foundByName.genero) {
-          generoFromAluno = foundByName.genero;
+          if (!categoriaFromAluno && found && found.categoria) categoriaFromAluno = found.categoria;
+          if (!generoFromAluno && found && found.genero) generoFromAluno = found.genero;
+          if ((!nomeFinal || looksLikeCode(nomeFinal)) && found && found.nome) nomeFinal = found.nome;
         }
       }
 
@@ -450,7 +435,7 @@ export async function parseExcelFile(file) {
       try {
         const rawCat = flattenCellValue(row.getCell(colMap.categoria || 8).value);
         categoriaFromCell = rawCat ? String(rawCat).trim() : '';
-      } catch (e) {
+      } catch {
         categoriaFromCell = '';
       }
 
@@ -459,7 +444,7 @@ export async function parseExcelFile(file) {
       try {
         const rawGen = flattenCellValue(row.getCell(colMap.genero || 9).value);
         generoFromCell = rawGen ? normalizeGenero(rawGen) : '';
-      } catch (e) {
+      } catch {
         generoFromCell = '';
       }
 
@@ -470,7 +455,7 @@ export async function parseExcelFile(file) {
       const finalGenero = (typeof generoFromAluno === 'string' && generoFromAluno.trim() !== '') ? generoFromAluno : (generoFromCell || '-');
 
       const registroObj = {
-        nome: nomeStr,
+        nome: nomeFinal,
         dataNascimento: dataNiso,
         dataRegistro: dataRiso,
         tempo: tempo,
@@ -482,9 +467,6 @@ export async function parseExcelFile(file) {
       };
 
       registros.push(registroObj);
-      // Log completo para debug: valores de data e categoria
-      console.log(`Linha ${rowNumber} - dataNascimento raw:`, dataNascimentoVal, '->', dataNiso, 'dataRegistro raw:', dataRegistroVal, '->', dataRiso, 'categoria:', categoriaCalc);
-      console.log('Registro importado:', registroObj);
     });
     
     return { registros, alunos: alunosArray };
