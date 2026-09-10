@@ -394,7 +394,10 @@ export default function App() {
         {/* Cabeçalho */}
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900">Gestão de Tempos de Natação</h1>
+            <h1 className="text-3xl font-bold text-blue-900">
+              Gestão de Tempos de Natação
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.1.0</span>
+            </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
               {supabaseLoading && <span className="ml-2 text-xs text-blue-500">● Carregando alunos...</span>}
