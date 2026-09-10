@@ -1,4 +1,4 @@
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://ciemcfibkmzqcfvavvsb.supabase.co';
+const SUPABASE_URL = (import.meta.env.VITE_SUPABASE_URL || 'https://ciemcfibkmzqcfvavvsb.supabase.co').replace(/\/rest\/v1\/?$/, '');
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpZW1jZmlia216cWNmdmF2dnNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzQ1MjQsImV4cCI6MjA5Nzc1MDUyNH0.Tw5tMGmPUrg5k77NKFv-FQqWvQ2bQsx2OdSL2krnWEg';
 const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'bela-vista';
 

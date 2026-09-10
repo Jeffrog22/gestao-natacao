@@ -1,4 +1,4 @@
-<!-- última-sessão: 10/09/2026 — integração Supabase + Cloudflare Pages -->
+<!-- última-sessão: 10/09/2026 — fix URL duplicada Supabase -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.1.0
+- **Versão atual:** 0.1.2
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -73,6 +73,31 @@
 - `src/App.jsx` (modificado)
 - `.env.local.example` (novo)
 - `.gitignore` (modificado)
+
+### Typecheck
+- Frontend: 0 erros (build OK)
+
+---
+
+## Sessão: 10/09/2026 — Fix URL duplicada Supabase
+
+### O que foi feito
+- Diagnosticado bug: env var `VITE_SUPABASE_URL` no Cloudflare Pages continha `/rest/v1/` no final, causando URL duplicada `/rest/v1/rest/v1/alunos`
+- Corrigido `src/lib/supabase.js` — adicionado `.replace(/\/rest\/v1\/?$/, '')` para remover path duplicado
+- Bump versão para v0.1.2
+
+### Causa raiz
+- O bundle deployado (`index-DfoDh3B0.js`) tinha `em="https://ciemcfibkmzqcfvavvsb.supabase.co/rest/v1/"` (com `/rest/v1/`)
+- O código fazia `fetch(${baseUrl}/rest/v1/alunos)` → URL final com `/rest/v1/` duplicado → 404
+
+### Arquivos
+- `src/lib/supabase.js` (modificado)
+- `src/App.jsx` (versão → v0.1.2)
+- `CHANGELOG.md` (modificado)
+- `AGENTS.md` (modificado)
+
+### Ação manual necessária
+- Remover ou corrigir env var `VITE_SUPABASE_URL` no Cloudflare Pages Dashboard (deve ser `https://ciemcfibkmzqcfvavvsb.supabase.co` sem `/rest/v1/`)
 
 ### Typecheck
 - Frontend: 0 erros (build OK)

@@ -7,6 +7,11 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.1.2] - 10/09/2026
+### Fixed
+- URL duplicada `/rest/v1/rest/v1/` causada por env var `VITE_SUPABASE_URL` com path `/rest/v1/` no Cloudflare Pages
+- Código agora remove `/rest/v1/` do final da URL antes de montar o endpoint REST
+
 ## [v0.1.0] - 10/09/2026
 ### Added
 - Integração com Supabase para busca de alunos (REST API direta)
