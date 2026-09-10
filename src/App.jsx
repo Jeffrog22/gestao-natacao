@@ -11,6 +11,7 @@ import {
   FileUp
 } from 'lucide-react';
 import { parseExcelFile } from './utils/excel';
+import { useAlunosSupabase } from './hooks/useAlunosSupabase';
 import * as ExcelJS from 'exceljs';
 
 // --- Configurações e Constantes ---
@@ -104,7 +105,15 @@ export default function App() {
   // Estado dos Dados Iniciais
   const [registros, setRegistros] = useState(() => loadFromStorage(STORAGE_KEYS.registros, []));
 
-  const [alunos, setAlunos] = useState(() => loadFromStorage(STORAGE_KEYS.alunos, []));
+  const [alunosLocais, setAlunosLocais] = useState(() => loadFromStorage(STORAGE_KEYS.alunos, []));
+
+  const { alunos: alunosSupabase, loading: supabaseLoading } = useAlunosSupabase();
+
+  // Merge: Supabase como fonte primária, localStorage como fallback
+  const alunos = useMemo(() => {
+    if (alunosSupabase.length > 0) return alunosSupabase;
+    return alunosLocais;
+  }, [alunosSupabase, alunosLocais]);
 
   const [lixeira, setLixeira] = useState(() => loadFromStorage(STORAGE_KEYS.lixeira, []));
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
@@ -145,7 +154,7 @@ export default function App() {
       console.log('alunosImportados (preview):', JSON.stringify(alunosImportados.slice(0, 5), null, 2));
 
       if (alunosImportados.length > 0) {
-        setAlunos(prev => {
+        setAlunosLocais(prev => {
           // merge unique by normalized name or codigo
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
@@ -297,6 +306,13 @@ export default function App() {
     setIndiceAlunoAtivo(-1);
   };
 
+  const limparDadosLocais = () => {
+    const ok = window.confirm('Limpar todos os alunos salvos localmente (importados de Excel)?\n\nOs alunos do Supabase continuarão disponíveis.');
+    if (!ok) return;
+    setAlunosLocais([]);
+    localStorage.removeItem(STORAGE_KEYS.alunos);
+  };
+
   const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
   const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
   const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
@@ -334,8 +350,8 @@ export default function App() {
   }, [registros]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(alunos));
-  }, [alunos]);
+    localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(alunosLocais));
+  }, [alunosLocais]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.lixeira, JSON.stringify(lixeira));
@@ -379,7 +395,12 @@ export default function App() {
         <header className="mb-8 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold text-blue-900">Gestão de Tempos de Natação</h1>
-            <p className="text-gray-500">Acompanhamento histórico e evolução de atletas</p>
+            <p className="text-gray-500">
+              Acompanhamento histórico e evolução de atletas
+              {supabaseLoading && <span className="ml-2 text-xs text-blue-500">● Carregando alunos...</span>}
+              {!supabaseLoading && alunosSupabase.length > 0 && <span className="ml-2 text-xs text-green-600">● {alunosSupabase.length} alunos sincronizados</span>}
+              {!supabaseLoading && alunosSupabase.length === 0 && alunosLocais.length > 0 && <span className="ml-2 text-xs text-amber-600">● {alunosLocais.length} alunos locais</span>}
+            </p>
           </div>
           <div className="flex gap-3">
             <input
@@ -407,6 +428,14 @@ export default function App() {
             >
               <Plus size={20} /> Novo Registro
             </button>
+            {alunosLocais.length > 0 && (
+              <button 
+                onClick={limparDadosLocais}
+                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm"
+              >
+                Limpar Dados Locais
+              </button>
+            )}
           </div>
         </header>
 
