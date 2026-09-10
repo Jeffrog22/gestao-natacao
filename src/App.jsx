@@ -396,7 +396,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.1.0</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.1.1</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
