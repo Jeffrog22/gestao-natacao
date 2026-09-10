@@ -29,7 +29,8 @@ export async function fetchAlunos({ nome, limit = 500 } = {}) {
     params.set('limit', String(limit));
   }
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/alunos?${params.toString()}`, {
+  const baseUrl = SUPABASE_URL.replace(/\/+$/, '');
+  const res = await fetch(`${baseUrl}/rest/v1/alunos?${params.toString()}`, {
     headers: {
       apikey: SUPABASE_ANON_KEY,
       Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
