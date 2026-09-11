@@ -16,7 +16,6 @@ import { parseExcelFile } from './utils/excel';
 import { useAlunosSupabase } from './hooks/useAlunosSupabase';
 import * as ExcelJS from 'exceljs';
 import GestaoAlunos from './components/GestaoAlunos';
-import ModalAluno from './components/ModalAluno';
 import Graficos from './components/Graficos';
 
 // --- Configurações e Constantes ---
@@ -144,16 +143,6 @@ export default function App() {
   const [autocompleteAberto, setAutocompleteAberto] = useState(false);
   const [indiceAlunoAtivo, setIndiceAlunoAtivo] = useState(-1);
 
-  // Estado do Modal de Aluno
-  const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
-  const [editandoAluno, setEditandoAluno] = useState(null);
-  const [proximoId, setProximoId] = useState(() => {
-    const ultimosLocais = alunosLocais.filter(a => a.id && a.id.startsWith('ID-'));
-    if (ultimosLocais.length === 0) return 1;
-    const numeros = ultimosLocais.map(a => parseInt(a.id.replace('ID-', ''), 10));
-    return Math.max(...numeros) + 1;
-  });
-
   // --- Lógica de Negócio e Manipuladores ---
 
   const handleFileChange = async (e) => {
@@ -175,7 +164,7 @@ export default function App() {
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
           alunosImportados.forEach(a => {
-            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '', status: a.status || 'ativo' });
+            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '', categoria: a.categoria || '', status: a.status || 'ativo' });
           });
           return existing;
         });
@@ -329,53 +318,6 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEYS.alunos);
   };
 
-  // --- Funções de Gestão de Alunos ---
-
-  const adicionarAluno = (dados) => {
-    const novoAluno = {
-      id: `ID-${String(proximoId).padStart(4, '0')}`,
-      nome: dados.nome,
-      dataNascimento: dados.dataNascimento || '',
-      genero: dados.genero || '',
-      categoria: dados.categoria || '',
-      nivel: '',
-      origem: 'manual',
-      status: 'ativo',
-    };
-    setAlunosLocais(prev => [...prev, novoAluno]);
-    setProximoId(prev => prev + 1);
-    setModalAlunoAberto(false);
-  };
-
-  const editarAluno = (dados) => {
-    if (!editandoAluno) return;
-    setAlunosLocais(prev => prev.map(a => {
-      if (a.id !== editandoAluno.id) return a;
-      return { ...a, nome: dados.nome, dataNascimento: dados.dataNascimento, genero: dados.genero, categoria: dados.categoria };
-    }));
-    // Atualizar registros que referenciam o nome antigo
-    if (editandoAluno.nome !== dados.nome) {
-      setRegistros(prev => prev.map(r => r.nome === editandoAluno.nome ? { ...r, nome: dados.nome } : r));
-    }
-    setModalAlunoAberto(false);
-    setEditandoAluno(null);
-  };
-
-  const excluirAluno = (id) => {
-    const aluno = alunos.find(a => a.id === id);
-    if (!aluno) return;
-    const ok = window.confirm(`Excluir o aluno "${aluno.nome}"?\n\nEsta ação não pode ser desfeita.`);
-    if (!ok) return;
-    setAlunosLocais(prev => prev.filter(a => a.id !== id));
-  };
-
-  const toggleStatusAluno = (id) => {
-    setAlunosLocais(prev => prev.map(a => {
-      if (a.id !== id) return a;
-      return { ...a, status: a.status === 'ativo' ? 'inativo' : 'ativo' };
-    }));
-  };
-
   const selecionarAlunoParaGrid = (nome) => {
     setFiltros(prev => ({ ...prev, nome }));
     setAbaAtiva('ativos');
@@ -476,7 +418,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.0</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.1</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -554,10 +496,6 @@ export default function App() {
         {abaAtiva === 'alunos' ? (
           <GestaoAlunos
             alunos={alunosParaGestao}
-            onToggleStatus={toggleStatusAluno}
-            onEditar={(aluno) => { setEditandoAluno(aluno); setModalAlunoAberto(true); }}
-            onExcluir={excluirAluno}
-            onNovoAluno={() => { setEditandoAluno(null); setModalAlunoAberto(true); }}
             onSelecionarAluno={selecionarAlunoParaGrid}
           />
         ) : abaAtiva === 'graficos' ? (
@@ -978,14 +916,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Modal de Aluno */}
-      <ModalAluno
-        aberto={modalAlunoAberto}
-        onFechar={() => { setModalAlunoAberto(false); setEditandoAluno(null); }}
-        onSalvar={editandoAluno ? editarAluno : adicionarAluno}
-        aluno={editandoAluno}
-      />
       </div>
     </div>
   );

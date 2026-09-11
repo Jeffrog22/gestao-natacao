@@ -1,4 +1,4 @@
-<!-- última-sessão: 10/09/2026 — feat gestão de alunos + gráficos -->
+<!-- última-sessão: 10/09/2026 — fix categorias + remove CRUD + Banco→Fiz! -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -31,8 +31,7 @@
 | Arquivo | Função |
 |---------|--------|
 | `src/App.jsx` | Componente principal com orquestração e estados globais |
-| `src/components/GestaoAlunos.jsx` | Aba de gerenciamento de alunos (CRUD) |
-| `src/components/ModalAluno.jsx` | Modal de cadastro/edição de aluno |
+| `src/components/GestaoAlunos.jsx` | Aba de consulta de alunos (somente leitura) |
 | `src/components/Graficos.jsx` | Aba de gráficos comparativos (SVG) |
 | `src/lib/supabase.js` | Cliente HTTP para REST API do Supabase |
 | `src/hooks/useAlunosSupabase.js` | Hook React para buscar alunos do Supabase |
@@ -135,3 +134,23 @@
 ### Typecheck
 - Frontend: 0 erros (build OK)
 - Lint: 0 erros
+
+---
+
+## Sessão: 10/09/2026 — Fix categorias + Remove CRUD + Banco→Fiz! (v0.2.1)
+
+### O que foi feito
+- **Fix categorias**: `ModalAluno` usava `'Senior'` (sem acento) mas o resto do app usa `'Sênior'` — agora removido
+- **Fix merge Excel**: campo `categoria` era perdido durante importação Excel → adicionado no push para `alunosLocais`
+- **Banco → Fiz!**: label de origem do Supabase agora exibe "Fiz!" ao invés de "Banco"
+- **Removido ModalAluno.jsx**: CRUD manual de alunos removido (alunos vêm apenas de Fiz! e Excel)
+- **Aba "Alunos" somente leitura**: sem botão "Novo Aluno", sem coluna Ações
+
+### Arquivos
+- `src/components/ModalAluno.jsx` (excluído)
+- `src/components/GestaoAlunos.jsx` (simplificado — somente leitura)
+- `src/App.jsx` (removidos imports, estados, funções do ModalAluno; fix categoria merge)
+
+### Typecheck
+- Build: OK
+- Lint: OK

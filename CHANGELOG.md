@@ -7,6 +7,16 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.1] - 10/09/2026
+### Fixed
+- Categorias não filtravam corretamente: `ModalAluno` usava `'Senior'` (sem acento) enquanto o resto do app usava `'Sênior'`
+- Alunos importados de Excel perdiam o campo `categoria` durante merge no localStorage
+
+### Changed
+- Aba "Alunos" agora é somente leitura (sem CRUD manual)
+- Botão "Novo Aluno" e `ModalAluno.jsx` removidos
+- Origem Supabase exibida como "Fiz!" ao invés de "Banco"
+
 ## [v0.2.0] - 10/09/2026
 ### Added
 - **Aba "Alunos"**: gerenciamento completo de alunos com CRUD
