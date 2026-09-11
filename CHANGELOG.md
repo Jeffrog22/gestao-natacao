@@ -7,6 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.2] - 10/09/2026
+### Changed
+- Modelo de importação Excel simplificado: 7 colunas fixas (Nome, Data_nascimento, Data_registro, Tempo, Prova, Estilo, Modo/Evento)
+- Categoria sempre calculada internamente (não mais lida da planilha)
+- Alunos derivados automaticamente dos registros (nomes únicos)
+- Removida lógica de aba DBalunos e cross-references de código
+
 ## [v0.2.1] - 10/09/2026
 ### Fixed
 - Categorias não filtravam corretamente: `ModalAluno` usava `'Senior'` (sem acento) enquanto o resto do app usava `'Sênior'`

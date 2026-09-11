@@ -1,4 +1,4 @@
-<!-- última-sessão: 10/09/2026 — fix categorias + remove CRUD + Banco→Fiz! -->
+<!-- última-sessão: 10/09/2026 — modelo de importação simplificado -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -150,6 +150,32 @@
 - `src/components/ModalAluno.jsx` (excluído)
 - `src/components/GestaoAlunos.jsx` (simplificado — somente leitura)
 - `src/App.jsx` (removidos imports, estados, funções do ModalAluno; fix categoria merge)
+
+### Typecheck
+- Build: OK
+- Lint: OK
+
+---
+
+## Sessão: 10/09/2026 — Modelo de importação simplificado (v0.2.2)
+
+### O que foi feito
+- **excel.js simplificado**: de 482 linhas para ~200 linhas
+- Removida lógica de aba DBalunos (cross-references, código, lookup)
+- Removidas funções mortas: `looksLikeCode`, `normalizeGenero`
+- Planilha agora tem 7 colunas fixas: Nome, Data_nascimento, Data_registro, Tempo, Prova, Estilo, Modo/Evento
+- Categoria **não salva** na importação — sempre calculada em runtime por `App.jsx`
+- Alunos derivados automaticamente dos registros (nomes únicos, ID-XXXX sequencial)
+
+### Decisões
+- Categoria sempre calculada: `year(dataRegistro) - year(dataNascimento)` → CBDA thresholds
+- Alunos Excel são nomes únicos extraídos dos registros
+- `calcularCategoria` definida apenas no `App.jsx` (duplicata do excel.js removida)
+
+### Arquivos
+- `src/utils/excel.js` (reescrito — simplificado)
+- `CHANGELOG.md` (v0.2.2)
+- `AGENTS.md` (sessão adicionada)
 
 ### Typecheck
 - Build: OK
