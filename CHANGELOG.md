@@ -7,6 +7,33 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.0] - 10/09/2026
+### Added
+- **Aba "Alunos"**: gerenciamento completo de alunos com CRUD
+  - Tabela com ID, Nome, Data Nasc., Gênero, Categoria, Status, Origem
+  - Toggle de status (ativo/inativo) para alunos Excel/Manual
+  - Alunos Supabase somente leitura (status determinado pelo banco)
+  - Botão "Novo Aluno" com modal de cadastro
+  - Edição e exclusão de alunos Excel/Manual
+  - Duplo-clique carrega registros do aluno na aba Registros
+- **Aba "Gráficos"**: comparação visual entre 2-3 alunos
+  - Gráfico de linha temporal (evolução do tempo ao longo das datas)
+  - Gráfico de barras comparativas (melhor tempo por prova)
+  - Filtros por estilo e prova
+  - SVG puro (zero dependências novas)
+- **Modelo unificado de aluno**: ID sequencial (ID-0001, SUP-0001), origem (supabase/excel/manual), status
+- Supabase agora busca todos os alunos (ativos e inativos)
+- Merge Supabase + Excel (não mais substituir)
+- Componentes separados: GestaoAlunos, ModalAluno, Graficos
+
+### Changed
+- Abas expandidas: Registros Ativos | Alunos | Gráficos | Lixeira
+- Status de alunos do Supabase reflete o campo `ativo` do banco
+- Alunos Excel/Manual têm toggle de status editável
+
+### Fixed
+- Alunos inativos do Supabase agora aparecem na lista (para registros históricos)
+
 ## [v0.1.2] - 10/09/2026
 ### Fixed
 - URL duplicada `/rest/v1/rest/v1/` causada por env var `VITE_SUPABASE_URL` com path `/rest/v1/` no Cloudflare Pages

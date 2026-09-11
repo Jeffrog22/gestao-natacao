@@ -255,6 +255,7 @@ function parseTempoCell(val) {
  * @returns {Promise<Array>} - Array de registros { nome, dataNascimento, dataRegistro, tempo, prova, estilo, modo }
  */
 export async function parseExcelFile(file) {
+  let excelIdCounter = 0;
   try {
     const arrayBuffer = await file.arrayBuffer();
     
@@ -328,12 +329,16 @@ export async function parseExcelFile(file) {
             alunosByCode[key.toUpperCase()] = info;
             alunosByCode[key.toLowerCase()] = info;
           }
+          excelIdCounter++;
           alunosArray.push({
+            id: `ID-${String(excelIdCounter).padStart(4, '0')}`,
             codigo: codeVal ? String(codeVal).trim() : '',
             nome: nameVal ? String(nameVal).trim() : '',
             dataNascimento: birthIso || '',
             categoria: catVal ? String(catVal).trim() : '',
-            genero: normalizeGenero(genderVal)
+            genero: normalizeGenero(genderVal),
+            origem: 'excel',
+            status: 'ativo'
           });
         });
 

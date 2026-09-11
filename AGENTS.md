@@ -1,4 +1,4 @@
-<!-- última-sessão: 10/09/2026 — fix URL duplicada Supabase -->
+<!-- última-sessão: 10/09/2026 — feat gestão de alunos + gráficos -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.1.2
+- **Versão atual:** 0.2.0
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -30,13 +30,15 @@
 
 | Arquivo | Função |
 |---------|--------|
-| `src/App.jsx` | Componente principal com toda a lógica de UI |
+| `src/App.jsx` | Componente principal com orquestração e estados globais |
+| `src/components/GestaoAlunos.jsx` | Aba de gerenciamento de alunos (CRUD) |
+| `src/components/ModalAluno.jsx` | Modal de cadastro/edição de aluno |
+| `src/components/Graficos.jsx` | Aba de gráficos comparativos (SVG) |
 | `src/lib/supabase.js` | Cliente HTTP para REST API do Supabase |
 | `src/hooks/useAlunosSupabase.js` | Hook React para buscar alunos do Supabase |
 | `src/utils/excel.js` | Utilitários de importação de planilha Excel |
 | `AGENTS.md` | Histórico completo do projeto |
 | `CHANGELOG.md` | Histórico de versões |
-| `DEVELOPMENT.md` | Diretrizes de desenvolvimento |
 
 ---
 
@@ -101,3 +103,35 @@
 
 ### Typecheck
 - Frontend: 0 erros (build OK)
+
+---
+
+## Sessão: 10/09/2026 — Gestão de Alunos + Gráficos (v0.2.0)
+
+### O que foi feito
+- **Modelo de dados unificado**: alunos têm `id` (ID-0001/SUP-0001), `origem` (supabase/excel/manual), `status` (ativo/inativo)
+- **Supabase**: busca todos os alunos (ativos + inativos), campo `ativo` mapeado para `status`
+- **Aba "Alunos"**: tabela CRUD com toggle de status, edição, exclusão, duplo-clique para filtrar registros
+- **Aba "Gráficos"**: SVG charts comparativos (linha temporal + barras) para 2-3 alunos
+- **Componentes separados**: GestaoAlunos.jsx, ModalAluno.jsx, Graficos.jsx
+- **Merge Supabase + Excel**: não mais substituir, agora combina listas
+
+### Decisões
+- Alunos Supabase são somente leitura (status determinado pelo banco)
+- Alunos Excel/Manual têm toggle de status editável
+- Gráficos em SVG puro (zero dependências novas)
+- IDs sequenciais (ID-0001) para Excel/Manual, SUP-XXXX para Supabase
+- Duplo-clique em aluno na aba gestão carrega registros na aba Registros
+
+### Arquivos
+- `src/App.jsx` (modificado — abas, estados, funções CRUD)
+- `src/components/GestaoAlunos.jsx` (novo)
+- `src/components/ModalAluno.jsx` (novo)
+- `src/components/Graficos.jsx` (novo)
+- `src/lib/supabase.js` (modificado — busca todos, mapeia status)
+- `src/utils/excel.js` (modificado — ID sequencial, origem)
+- `src/hooks/useAlunosSupabase.js` (modificado — comentário)
+
+### Typecheck
+- Frontend: 0 erros (build OK)
+- Lint: 0 erros

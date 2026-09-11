@@ -8,11 +8,16 @@ import {
   Plus, 
   Edit2, 
   X,
-  FileUp
+  FileUp,
+  Users,
+  BarChart3
 } from 'lucide-react';
 import { parseExcelFile } from './utils/excel';
 import { useAlunosSupabase } from './hooks/useAlunosSupabase';
 import * as ExcelJS from 'exceljs';
+import GestaoAlunos from './components/GestaoAlunos';
+import ModalAluno from './components/ModalAluno';
+import Graficos from './components/Graficos';
 
 // --- Configurações e Constantes ---
 
@@ -109,14 +114,15 @@ export default function App() {
 
   const { alunos: alunosSupabase, loading: supabaseLoading } = useAlunosSupabase();
 
-  // Merge: Supabase como fonte primária, localStorage como fallback
+  // Merge: Supabase + Excel (não mais substituir)
   const alunos = useMemo(() => {
-    if (alunosSupabase.length > 0) return alunosSupabase;
-    return alunosLocais;
+    const nomesSupabase = new Set(alunosSupabase.map(a => a.nome));
+    const excelUnicos = alunosLocais.filter(a => !nomesSupabase.has(a.nome));
+    return [...alunosSupabase, ...excelUnicos];
   }, [alunosSupabase, alunosLocais]);
 
   const [lixeira, setLixeira] = useState(() => loadFromStorage(STORAGE_KEYS.lixeira, []));
-  const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'lixeira'
+  const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'alunos' | 'graficos' | 'lixeira'
 
   // Estado de Filtros e Ordenação
   const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '' });
@@ -128,7 +134,7 @@ export default function App() {
   const [categoriaDropdownOpen, setCategoriaDropdownOpen] = useState(false);
   const [ordenacao, setOrdenacao] = useState({ campo: 'dataRegistro', direcao: 'desc' });
 
-  // Estado do Formulário
+  // Estado do Formulário de Registro
   const [modalAberto, setModalAberto] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState({
@@ -137,6 +143,16 @@ export default function App() {
   const [alunoBusca, setAlunoBusca] = useState('');
   const [autocompleteAberto, setAutocompleteAberto] = useState(false);
   const [indiceAlunoAtivo, setIndiceAlunoAtivo] = useState(-1);
+
+  // Estado do Modal de Aluno
+  const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
+  const [editandoAluno, setEditandoAluno] = useState(null);
+  const [proximoId, setProximoId] = useState(() => {
+    const ultimosLocais = alunosLocais.filter(a => a.id && a.id.startsWith('ID-'));
+    if (ultimosLocais.length === 0) return 1;
+    const numeros = ultimosLocais.map(a => parseInt(a.id.replace('ID-', ''), 10));
+    return Math.max(...numeros) + 1;
+  });
 
   // --- Lógica de Negócio e Manipuladores ---
 
@@ -159,7 +175,7 @@ export default function App() {
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
           alunosImportados.forEach(a => {
-            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '' });
+            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '', status: a.status || 'ativo' });
           });
           return existing;
         });
@@ -313,6 +329,62 @@ export default function App() {
     localStorage.removeItem(STORAGE_KEYS.alunos);
   };
 
+  // --- Funções de Gestão de Alunos ---
+
+  const adicionarAluno = (dados) => {
+    const novoAluno = {
+      id: `ID-${String(proximoId).padStart(4, '0')}`,
+      nome: dados.nome,
+      dataNascimento: dados.dataNascimento || '',
+      genero: dados.genero || '',
+      categoria: dados.categoria || '',
+      nivel: '',
+      origem: 'manual',
+      status: 'ativo',
+    };
+    setAlunosLocais(prev => [...prev, novoAluno]);
+    setProximoId(prev => prev + 1);
+    setModalAlunoAberto(false);
+  };
+
+  const editarAluno = (dados) => {
+    if (!editandoAluno) return;
+    setAlunosLocais(prev => prev.map(a => {
+      if (a.id !== editandoAluno.id) return a;
+      return { ...a, nome: dados.nome, dataNascimento: dados.dataNascimento, genero: dados.genero, categoria: dados.categoria };
+    }));
+    // Atualizar registros que referenciam o nome antigo
+    if (editandoAluno.nome !== dados.nome) {
+      setRegistros(prev => prev.map(r => r.nome === editandoAluno.nome ? { ...r, nome: dados.nome } : r));
+    }
+    setModalAlunoAberto(false);
+    setEditandoAluno(null);
+  };
+
+  const excluirAluno = (id) => {
+    const aluno = alunos.find(a => a.id === id);
+    if (!aluno) return;
+    const ok = window.confirm(`Excluir o aluno "${aluno.nome}"?\n\nEsta ação não pode ser desfeita.`);
+    if (!ok) return;
+    setAlunosLocais(prev => prev.filter(a => a.id !== id));
+  };
+
+  const toggleStatusAluno = (id) => {
+    setAlunosLocais(prev => prev.map(a => {
+      if (a.id !== id) return a;
+      return { ...a, status: a.status === 'ativo' ? 'inativo' : 'ativo' };
+    }));
+  };
+
+  const selecionarAlunoParaGrid = (nome) => {
+    setFiltros(prev => ({ ...prev, nome }));
+    setAbaAtiva('ativos');
+  };
+
+  const alunosParaGestao = useMemo(() => {
+    return [...alunos].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+  }, [alunos]);
+
   const provasDisponiveisForm = form.estilo ? (PROVAS_POR_ESTILO[form.estilo] || []) : [];
   const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
   const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
@@ -331,6 +403,14 @@ export default function App() {
     if (!termo) return nomesUnicos.slice(0, 8);
     return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
   }, [registros, alunos, filtros.nome]);
+
+  const alunosStatusMap = useMemo(() => {
+    const map = {};
+    alunos.forEach(a => {
+      if (a.nome) map[a.nome.trim()] = a.status || 'ativo';
+    });
+    return map;
+  }, [alunos]);
 
   const selecionarAluno = (nomeSelecionado) => {
     const aluno = alunos.find(a => a.nome === nomeSelecionado);
@@ -396,7 +476,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.1.2</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.0</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -451,6 +531,18 @@ export default function App() {
             Registros Ativos ({registros.length})
           </button>
           <button 
+            onClick={() => setAbaAtiva('alunos')}
+            className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'alunos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <Users size={16} /> Alunos ({alunos.length})
+          </button>
+          <button 
+            onClick={() => setAbaAtiva('graficos')}
+            className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'graficos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            <BarChart3 size={16} /> Gráficos
+          </button>
+          <button 
             onClick={() => setAbaAtiva('lixeira')}
             className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'lixeira' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:text-gray-700'}`}
           >
@@ -458,6 +550,20 @@ export default function App() {
           </button>
         </div>
 
+        {/* Conteúdo por Aba */}
+        {abaAtiva === 'alunos' ? (
+          <GestaoAlunos
+            alunos={alunosParaGestao}
+            onToggleStatus={toggleStatusAluno}
+            onEditar={(aluno) => { setEditandoAluno(aluno); setModalAlunoAberto(true); }}
+            onExcluir={excluirAluno}
+            onNovoAluno={() => { setEditandoAluno(null); setModalAlunoAberto(true); }}
+            onSelecionarAluno={selecionarAlunoParaGrid}
+          />
+        ) : abaAtiva === 'graficos' ? (
+          <Graficos alunos={alunos} registros={registros} />
+        ) : (
+        <>
         {/* Barra de Filtros */}
         <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-end border border-gray-100">
           <div className="flex-1 min-w-[200px]">
@@ -514,9 +620,12 @@ export default function App() {
                         setBuscaDropdownOpen(false);
                         setBuscaIndiceAtivo(-1);
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm ${idx === buscaIndiceAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === buscaIndiceAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
                     >
-                      {nome}
+                      <span>{nome}</span>
+                      {alunosStatusMap[nome] === 'inativo' && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -708,7 +817,8 @@ export default function App() {
             </tbody>
           </table>
         </div>
-      </div>
+        </>
+        )}
 
       {/* Modal de Cadastro/Edição */}
       {modalAberto && (
@@ -776,9 +886,12 @@ export default function App() {
                           key={`${nome}-${idx}`}
                           type="button"
                           onMouseDown={() => selecionarAluno(nome)}
-                          className={`w-full text-left px-3 py-2 text-sm ${idx === indiceAlunoAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === indiceAlunoAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
                         >
-                          {nome}
+                          <span>{nome}</span>
+                          {alunosStatusMap[nome] === 'inativo' && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -865,6 +978,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Modal de Aluno */}
+      <ModalAluno
+        aberto={modalAlunoAberto}
+        onFechar={() => { setModalAlunoAberto(false); setEditandoAluno(null); }}
+        onSalvar={editandoAluno ? editarAluno : adicionarAluno}
+        aluno={editandoAluno}
+      />
+      </div>
     </div>
   );
 }

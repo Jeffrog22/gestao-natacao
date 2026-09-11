@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchAlunos } from '../lib/supabase';
 
 /**
- * Hook que busca alunos ativos do Supabase
+ * Hook que busca todos os alunos do Supabase (ativos e inativos)
  * @returns {{ alunos: Array, loading: boolean, error: string|null, refetch: Function }}
  */
 export function useAlunosSupabase() {
