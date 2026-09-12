@@ -7,6 +7,15 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.5] - 12/09/2026
+### Fixed
+- **Propagação de gênero**: ao editar gênero de uma aluna na gestão, o valor é propagado para todos os registros dela
+- **Fallback de gênero**: grid de registros exibe gênero do aluno quando o registro não possui (registros antigos)
+- **IDs retroativos**: alunos importados de Excel sem ID recebem `ID-XXXX` sequencial automaticamente ao carregar
+
+### Changed
+- **Gestão de Alunos**: célula de gênero agora é editável inline (clique → dropdown M/F/O)
+
 ## [v0.2.4] - 12/09/2026
 ### Changed
 - **Ordenação Excel-like**: todos os grids agora usam ciclo de 3 estados (asc → desc → sem ordenação)

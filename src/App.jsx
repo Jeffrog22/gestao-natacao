@@ -144,7 +144,23 @@ export default function App() {
   // Estado dos Dados Iniciais
   const [registros, setRegistros] = useState(() => loadFromStorage(STORAGE_KEYS.registros, []));
 
-  const [alunosLocais, setAlunosLocais] = useState(() => loadFromStorage(STORAGE_KEYS.alunos, []));
+  const [alunosLocais, setAlunosLocais] = useState(() => {
+    const dados = loadFromStorage(STORAGE_KEYS.alunos, []);
+    let counter = 0;
+    const existentes = new Set();
+    dados.forEach(a => { if (a.id) { const num = parseInt(String(a.id).replace(/\D/g, ''), 10); if (!isNaN(num)) existentes.add(num); } });
+    const normalizados = dados.map(a => {
+      if (a.id) return a;
+      counter++;
+      while (existentes.has(counter)) counter++;
+      existentes.add(counter);
+      return { ...a, id: `ID-${String(counter).padStart(4, '0')}` };
+    });
+    if (normalizados.some((a, i) => a.id !== dados[i]?.id)) {
+      localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(normalizados));
+    }
+    return normalizados;
+  });
 
   const { alunos: alunosSupabase, loading: supabaseLoading } = useAlunosSupabase();
 
@@ -358,6 +374,18 @@ export default function App() {
     setAbaAtiva('ativos');
   };
 
+  const handleAtualizarAluno = (alunoId, dadosAtualizados) => {
+    setAlunosLocais(prev => prev.map(a => a.id === alunoId ? { ...a, ...dadosAtualizados } : a));
+    if (dadosAtualizados.genero !== undefined) {
+      const aluno = [...alunosSupabase, ...alunosLocais].find(a => a.id === alunoId);
+      if (aluno) {
+        setRegistros(prev => prev.map(r =>
+          r.nome === aluno.nome ? { ...r, genero: dadosAtualizados.genero } : r
+        ));
+      }
+    }
+  };
+
   const alunosParaGestao = useMemo(() => {
     return [...alunos].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
   }, [alunos]);
@@ -386,6 +414,12 @@ export default function App() {
     alunos.forEach(a => {
       if (a.nome) map[a.nome.trim()] = a.status || 'ativo';
     });
+    return map;
+  }, [alunos]);
+
+  const alunosMap = useMemo(() => {
+    const map = {};
+    alunos.forEach(a => { if (a.nome) map[a.nome.trim()] = a; });
     return map;
   }, [alunos]);
 
@@ -421,7 +455,7 @@ export default function App() {
 
     let dadosFiltrados = fonte.filter(item => {
       const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
-      const generoItem = item.genero || '-';
+      const generoItem = (item.genero && item.genero !== '-') ? item.genero : (alunosMap[item.nome?.trim()]?.genero || '-');
       return (
         item.nome.toLowerCase().includes(filtros.nome.toLowerCase()) &&
         (filtros.prova === '' || item.prova === filtros.prova) &&
@@ -456,7 +490,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.4</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.5</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -535,6 +569,7 @@ export default function App() {
           <GestaoAlunos
             alunos={alunosParaGestao}
             onSelecionarAluno={selecionarAlunoParaGrid}
+            onAtualizarAluno={handleAtualizarAluno}
           />
         ) : abaAtiva === 'graficos' ? (
           <Graficos alunos={alunos} registros={registros} />
@@ -771,7 +806,7 @@ export default function App() {
                           {item.modo}
                         </span>
                       </td>
-                      <td className="p-4 text-center font-bold">{item.genero || '-'}</td>
+                      <td className="p-4 text-center font-bold">{(item.genero && item.genero !== '-') ? item.genero : (alunosMap[item.nome?.trim()]?.genero || '-')}</td>
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {abaAtiva === 'ativos' ? (

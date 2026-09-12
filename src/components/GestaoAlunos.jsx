@@ -1,15 +1,24 @@
 import React, { useState, useMemo } from 'react';
 import { Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 
+const GENERO_OPTIONS = [
+  { value: '', label: '-' },
+  { value: 'M', label: 'M' },
+  { value: 'F', label: 'F' },
+  { value: 'O', label: 'O' },
+];
+
 /**
- * Aba de consulta de alunos (somente leitura)
+ * Aba de consulta de alunos com edição inline de gênero
  * @param {object} props
  * @param {Array} props.alunos - Lista unificada de alunos
  * @param {Function} props.onSelecionarAluno - Duplo-clique: carrega registros do aluno
+ * @param {Function} props.onAtualizarAluno - Atualiza aluno + propaga para registros
  */
-export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
+export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAluno }) {
   const [termoBusca, setTermoBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState({ campo: 'nome', direcao: 'asc' });
+  const [editandoGenero, setEditandoGenero] = useState(null);
 
   const handleSort = (campo) => {
     setOrdenacao(prev => {
@@ -53,6 +62,13 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
   }, [alunos]);
 
   const thClass = "p-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none";
+
+  const handleGeneroChange = (aluno, novoGenero) => {
+    if (onAtualizarAluno) {
+      onAtualizarAluno(aluno.id, { genero: novoGenero });
+    }
+    setEditandoGenero(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -129,7 +145,29 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
                   <td className="p-3 text-gray-600">
                     {aluno.dataNascimento ? new Date(aluno.dataNascimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>
-                  <td className="p-3 text-gray-600">{aluno.genero || '-'}</td>
+                  <td className="p-3 text-gray-600 relative">
+                    {editandoGenero === aluno.id ? (
+                      <select
+                        autoFocus
+                        className="border border-blue-400 rounded px-1 py-0.5 text-xs bg-white"
+                        value={aluno.genero || ''}
+                        onChange={e => handleGeneroChange(aluno, e.target.value)}
+                        onBlur={() => setEditandoGenero(null)}
+                      >
+                        {GENERO_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setEditandoGenero(aluno.id); }}
+                        className="hover:bg-blue-100 px-1 rounded cursor-pointer"
+                        title="Clique para editar gênero"
+                      >
+                        {aluno.genero || '-'}
+                      </button>
+                    )}
+                  </td>
                   <td className="p-3 text-gray-600">{aluno.categoria || '-'}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${

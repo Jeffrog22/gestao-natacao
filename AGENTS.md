@@ -1,4 +1,4 @@
-<!-- última-sessão: 12/09/2026 — ordenação Excel-like + busca GestaoAlunos -->
+<!-- última-sessão: 12/09/2026 — propagação gênero + IDs retroativos (v0.2.5) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.4
+- **Versão atual:** 0.2.5
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -231,13 +231,44 @@
 
 ### Decisões
 - Gestão de Alunos: busca somente por nome (decisão do usuário)
-- Colunas ordenáveis na gestão: 5 colunas (Nome, Data Nasc., Gênero, Categoria, Status) + ID e Origem não ordenáveis
+- Colunas ordenáveis na gestão: todas as 7 colunas agora são ordenáveis
 - Ciclo de ordenação: mesma coluna clicada 3 vezes volta ao estado sem ordenação
+- Origem também ordenável (adicionado posteriormente)
 
 ### Arquivos
 - `src/App.jsx` (modificado — handleSort, dadosExibidos, clear button search)
 - `src/components/GestaoAlunos.jsx` (reescrito — ordenação, busca, clear button)
 - `CHANGELOG.md` (v0.2.4)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK
+
+---
+
+## Sessão: 12/09/2026 — Propagação Gênero + IDs Retroativos (v0.2.5)
+
+### O que foi feito
+- **Propagação de gênero**: ao editar gênero de uma aluna na gestão, o valor é propagado para todos os registros dela
+  - `handleAtualizarAluno` atualiza `alunosLocais` E `registros` com `nome` correspondente
+  - `GestaoAlunos.jsx`: célula de gênero agora é editável inline (clique → dropdown M/F/O)
+- **Fallback de gênero**: grid de registros exibe gênero do aluno quando o registro não possui
+  - `alunosMap` (nome → aluno) usado como fallback em `dadosExibidos`
+  - Registros antigos com `genero: '-'` agora mostram o gênero do aluno
+- **IDs retroativos**: alunos importados de Excel sem ID recebem `ID-XXXX` sequencial automaticamente
+  - Normalização no `useState` inicial de `alunosLocais`
+  - IDs ausentes são detectados, sequência é calculada, e dados são salvos de volta no localStorage
+
+### Decisões
+- Propagação usa `nome` como chave (não `id`) porque registros e alunos compartilham o mesmo nome
+- Fallback de gênero é transparente: se o registro já tem gênero próprio, usa ele; senão usa o da aluna
+- IDs retroativos são persistidos no localStorage (sobrevivem refresh)
+
+### Arquivos
+- `src/App.jsx` (modificado — handleAtualizarAluno, alunosMap, normalização IDs, fallback gênero)
+- `src/components/GestaoAlunos.jsx` (modificado — edição inline de gênero, prop onAtualizarAluno)
+- `CHANGELOG.md` (v0.2.5)
 - `AGENTS.md` (sessão adicionada)
 
 ### Typecheck
