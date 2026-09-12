@@ -7,6 +7,26 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.4] - 12/09/2026
+### Changed
+- **Ordenação Excel-like**: todos os grids agora usam ciclo de 3 estados (asc → desc → sem ordenação)
+  - Records Grid: colunas Aluno, Data Reg., Prova, Estilo, Tempo são ordenáveis
+  - Gestão de Alunos: colunas Nome, Data Nasc., Gênero, Categoria, Status são ordenáveis
+- **Gestão de Alunos**: adicionado campo de busca por nome com botão de limpar (X)
+- **Records Grid**: adicionado botão de limpar (X) no campo de busca "Buscar Aluno"
+
+## [v0.2.3] - 12/09/2026
+### Changed
+- **Categorias CBDA**: tabela de cálculo completamente reescrita com 24 categorias baseadas em idade mínima
+  - De 6 categorias genéricas para: Pré-Mirim, Mirim I/II, Petiz I/II, Infantil I/II, Juvenil I/II, Júnior I/II/Sênior, A20+ até M80+
+  - Cálculo de idade agora considera mês e dia (não apenas ano)
+  - Dropdown de filtro de categorias atualizado com todas as 24 opções
+
+### Fixed
+- **Gênero no grid**: adicionado campo de seleção de gênero (M/F/O) no formulário de registro
+- **IDs de alunos Excel**: corrigido bug onde IDs gerados pelo Excel (`ID-0001`) eram descartados durante merge no localStorage
+- Removida mutação direta de state do React (anti-pattern) no filtro de gênero
+
 ## [v0.2.2] - 10/09/2026
 ### Changed
 - Modelo de importação Excel simplificado: 7 colunas fixas (Nome, Data_nascimento, Data_registro, Tempo, Prova, Estilo, Modo/Evento)

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
+import { Search, X, ArrowUp, ArrowDown } from 'lucide-react';
 
 /**
  * Aba de consulta de alunos (somente leitura)
@@ -7,18 +8,51 @@ import React, { useMemo } from 'react';
  * @param {Function} props.onSelecionarAluno - Duplo-clique: carrega registros do aluno
  */
 export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
-  const alunosOrdenados = useMemo(() => {
-    return [...alunos].sort((a, b) => {
-      if (a.status !== b.status) return a.status === 'ativo' ? -1 : 1;
-      return (a.nome || '').localeCompare(b.nome || '', 'pt-BR');
+  const [termoBusca, setTermoBusca] = useState('');
+  const [ordenacao, setOrdenacao] = useState({ campo: 'nome', direcao: 'asc' });
+
+  const handleSort = (campo) => {
+    setOrdenacao(prev => {
+      if (prev.campo !== campo) return { campo, direcao: 'asc' };
+      if (prev.direcao === 'asc') return { campo, direcao: 'desc' };
+      if (prev.direcao === 'desc') return { campo, direcao: null };
+      return { campo, direcao: 'asc' };
     });
-  }, [alunos]);
+  };
+
+  const SortIcon = ({ campo }) => {
+    if (ordenacao.campo !== campo || !ordenacao.direcao) return null;
+    return ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
+  };
+
+  const dadosFiltrados = useMemo(() => {
+    const termo = termoBusca.trim().toLowerCase();
+    if (!termo) return alunos;
+    return alunos.filter(a =>
+      (a.nome || '').toLowerCase().includes(termo)
+    );
+  }, [alunos, termoBusca]);
+
+  const alunosOrdenados = useMemo(() => {
+    if (!ordenacao.direcao) return dadosFiltrados;
+    return [...dadosFiltrados].sort((a, b) => {
+      let valA = a[ordenacao.campo] ?? '';
+      let valB = b[ordenacao.campo] ?? '';
+      if (typeof valA === 'string') valA = valA.toLowerCase();
+      if (typeof valB === 'string') valB = valB.toLowerCase();
+      if (valA < valB) return ordenacao.direcao === 'asc' ? -1 : 1;
+      if (valA > valB) return ordenacao.direcao === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [dadosFiltrados, ordenacao]);
 
   const stats = useMemo(() => {
     const ativos = alunos.filter(a => a.status === 'ativo').length;
     const inativos = alunos.filter(a => a.status === 'inativo').length;
     return { total: alunos.length, ativos, inativos };
   }, [alunos]);
+
+  const thClass = "p-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none";
 
   return (
     <div className="space-y-4">
@@ -29,7 +63,25 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
             {stats.total} aluno(s) • {stats.ativos} ativo(s) • {stats.inativos} inativo(s)
           </p>
         </div>
-        <p className="text-xs text-gray-400 italic">Dados vêm do Fiz! e Excel</p>
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar aluno..."
+            className="pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm w-64"
+            value={termoBusca}
+            onChange={e => setTermoBusca(e.target.value)}
+          />
+          {termoBusca && (
+            <button
+              type="button"
+              onClick={() => setTermoBusca('')}
+              className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+            >
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -37,11 +89,21 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Nome</th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Data Nasc.</th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Gênero</th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Categoria</th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+              <th onClick={() => handleSort('nome')} className={thClass}>
+                <span className="flex items-center gap-1">Nome <SortIcon campo="nome" /></span>
+              </th>
+              <th onClick={() => handleSort('dataNascimento')} className={thClass}>
+                <span className="flex items-center gap-1">Data Nasc. <SortIcon campo="dataNascimento" /></span>
+              </th>
+              <th onClick={() => handleSort('genero')} className={thClass}>
+                <span className="flex items-center gap-1">Gênero <SortIcon campo="genero" /></span>
+              </th>
+              <th onClick={() => handleSort('categoria')} className={thClass}>
+                <span className="flex items-center gap-1">Categoria <SortIcon campo="categoria" /></span>
+              </th>
+              <th onClick={() => handleSort('status')} className={thClass}>
+                <span className="flex items-center gap-1">Status <SortIcon campo="status" /></span>
+              </th>
               <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Origem</th>
             </tr>
           </thead>

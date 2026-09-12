@@ -48,22 +48,57 @@ const loadFromStorage = (key, fallback = []) => {
   }
 };
 
-// Lógica de Categorias CBDA (Baseada na idade na época do registro)
+// Tabela de Categorias CBDA (Baseada na idade mínima na época do registro)
+const CATEGORIAS_CBDA = [
+  { idadeMinima: 0,  nome: 'Pré-Mirim' },
+  { idadeMinima: 9,  nome: 'Mirim I' },
+  { idadeMinima: 10, nome: 'Mirim II' },
+  { idadeMinima: 11, nome: 'Petiz I' },
+  { idadeMinima: 12, nome: 'Petiz II' },
+  { idadeMinima: 13, nome: 'Infantil I' },
+  { idadeMinima: 14, nome: 'Infantil II' },
+  { idadeMinima: 15, nome: 'Juvenil I' },
+  { idadeMinima: 16, nome: 'Juvenil II' },
+  { idadeMinima: 17, nome: 'Júnior I' },
+  { idadeMinima: 18, nome: 'Júnior II/Sênior' },
+  { idadeMinima: 20, nome: 'A20+' },
+  { idadeMinima: 25, nome: 'B25+' },
+  { idadeMinima: 30, nome: 'C30+' },
+  { idadeMinima: 35, nome: 'D35+' },
+  { idadeMinima: 40, nome: 'E40+' },
+  { idadeMinima: 45, nome: 'F45+' },
+  { idadeMinima: 50, nome: 'G50+' },
+  { idadeMinima: 55, nome: 'H55+' },
+  { idadeMinima: 60, nome: 'I60+' },
+  { idadeMinima: 65, nome: 'J65+' },
+  { idadeMinima: 70, nome: 'K70+' },
+  { idadeMinima: 75, nome: 'L75+' },
+  { idadeMinima: 80, nome: 'M80+' },
+];
+
 const calcularCategoria = (dataNascimento, dataRegistro) => {
   if (!dataNascimento || !dataRegistro) return '-';
   
   const nasc = new Date(dataNascimento);
   const reg = new Date(dataRegistro);
   
-  // Cálculo: Ano do Registro - Ano de Nascimento
-  const idadeNaEpoca = reg.getFullYear() - nasc.getFullYear();
+  let idade = reg.getFullYear() - nasc.getFullYear();
+  const mesReg = reg.getMonth();
+  const diaReg = reg.getDate();
+  const mesNasc = nasc.getMonth();
+  const diaNasc = nasc.getDate();
+  if (mesReg < mesNasc || (mesReg === mesNasc && diaReg < diaNasc)) {
+    idade--;
+  }
 
-  if (idadeNaEpoca <= 8) return 'Mirim';
-  if (idadeNaEpoca <= 10) return 'Petiz';
-  if (idadeNaEpoca <= 12) return 'Infantil';
-  if (idadeNaEpoca <= 14) return 'Juvenil';
-  if (idadeNaEpoca <= 16) return 'Junior';
-  return 'Sênior';
+  let categoria = '-';
+  for (let i = CATEGORIAS_CBDA.length - 1; i >= 0; i--) {
+    if (idade >= CATEGORIAS_CBDA[i].idadeMinima) {
+      categoria = CATEGORIAS_CBDA[i].nome;
+      break;
+    }
+  }
+  return categoria;
 };
 
 const formatTempoFromDigits = (digits) => {
@@ -124,12 +159,10 @@ export default function App() {
   const [abaAtiva, setAbaAtiva] = useState('ativos'); // 'ativos' | 'alunos' | 'graficos' | 'lixeira'
 
   // Estado de Filtros e Ordenação
-  const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '' });
+  const [filtros, setFiltros] = useState({ nome: '', prova: '', estilo: '', modo: '', categoria: '', genero: '' });
   const [buscaDropdownOpen, setBuscaDropdownOpen] = useState(false);
   const [buscaIndiceAtivo, setBuscaIndiceAtivo] = useState(-1);
   const [generoDropdownOpen, setGeneroDropdownOpen] = useState(false);
-  // add genero to filtros
-  if (!('genero' in filtros)) filtros.genero = '';
   const [categoriaDropdownOpen, setCategoriaDropdownOpen] = useState(false);
   const [ordenacao, setOrdenacao] = useState({ campo: 'dataRegistro', direcao: 'desc' });
 
@@ -164,7 +197,7 @@ export default function App() {
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
           alunosImportados.forEach(a => {
-            if (a.nome && !names.has(a.nome)) existing.push({ nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '', categoria: a.categoria || '', status: a.status || 'ativo' });
+            if (a.nome && !names.has(a.nome)) existing.push({ id: a.id, nome: a.nome, dataNascimento: a.dataNascimento || '', codigo: a.codigo || '', genero: a.genero || '', categoria: a.categoria || '', status: a.status || 'ativo' });
           });
           return existing;
         });
@@ -219,10 +252,12 @@ export default function App() {
   };
 
   const handleSort = (campo) => {
-    setOrdenacao(prev => ({
-      campo,
-      direcao: prev.campo === campo && prev.direcao === 'asc' ? 'desc' : 'asc'
-    }));
+    setOrdenacao(prev => {
+      if (prev.campo !== campo) return { campo, direcao: 'asc' };
+      if (prev.direcao === 'asc') return { campo, direcao: 'desc' };
+      if (prev.direcao === 'desc') return { campo: campo, direcao: null };
+      return { campo, direcao: 'asc' };
+    });
   };
 
   const limparFiltros = () => {
@@ -397,14 +432,17 @@ export default function App() {
       );
     });
 
-    return dadosFiltrados.sort((a, b) => {
-      const valA = a[ordenacao.campo];
-      const valB = b[ordenacao.campo];
-      
-      if (valA < valB) return ordenacao.direcao === 'asc' ? -1 : 1;
-      if (valA > valB) return ordenacao.direcao === 'asc' ? 1 : -1;
-      return 0;
-    });
+    if (ordenacao.direcao) {
+      return dadosFiltrados.sort((a, b) => {
+        const valA = a[ordenacao.campo];
+        const valB = b[ordenacao.campo];
+        
+        if (valA < valB) return ordenacao.direcao === 'asc' ? -1 : 1;
+        if (valA > valB) return ordenacao.direcao === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return dadosFiltrados;
   }, [registros, lixeira, abaAtiva, filtros, ordenacao]);
 
   // --- Renderização ---
@@ -418,7 +456,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.2</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.4</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -511,7 +549,7 @@ export default function App() {
               <input 
                 type="text" 
                 placeholder="Nome do atleta..." 
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                 value={filtros.nome}
                 onFocus={() => {
                   setBuscaDropdownOpen(true);
@@ -546,6 +584,15 @@ export default function App() {
                   }
                 }}
               />
+              {filtros.nome && (
+                <button
+                  type="button"
+                  onClick={() => { setFiltros({...filtros, nome: ''}); setBuscaDropdownOpen(false); }}
+                  className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={16} />
+                </button>
+              )}
 
               {buscaDropdownOpen && nomesBuscaSugeridos.length > 0 && (
                 <div className="absolute z-40 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
@@ -629,9 +676,9 @@ export default function App() {
                 {
                   // Cabeçalhos customizados para tratar categoria e genero
                 }
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">Aluno</th>
+                <th onClick={() => handleSort('nome')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Aluno {ordenacao.campo === 'nome' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
                 <th onClick={() => handleSort('dataRegistro')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Data Reg.
-                  {ordenacao.campo === 'dataRegistro' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
+                  {ordenacao.campo === 'dataRegistro' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
                   <div className="relative">
@@ -646,7 +693,7 @@ export default function App() {
                     {categoriaDropdownOpen && (
                       <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-40 p-2">
                         <div className="text-xs text-gray-500 mb-1">Filtrar por Categoria</div>
-                        {['', 'Mirim','Petiz','Infantil','Juvenil','Junior','Sênior','-'].map(opt => (
+                        {['', ...CATEGORIAS_CBDA.map(c => c.nome), '-'].map(opt => (
                           <button
                             key={opt}
                             onClick={() => { setFiltros({...filtros, categoria: opt}); setCategoriaDropdownOpen(false); }}
@@ -659,9 +706,9 @@ export default function App() {
                     )}
                   </div>
                 </th>
-                <th onClick={() => handleSort('prova')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Prova {ordenacao.campo === 'prova' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th onClick={() => handleSort('estilo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Estilo {ordenacao.campo === 'estilo' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th onClick={() => handleSort('tempo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Tempo {ordenacao.campo === 'tempo' && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('prova')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Prova {ordenacao.campo === 'prova' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('estilo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Estilo {ordenacao.campo === 'estilo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('tempo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Tempo {ordenacao.campo === 'tempo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">Modo</th>
                 <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
                   <div className="relative">
@@ -853,6 +900,16 @@ export default function App() {
                 <select required className="w-full p-2 border rounded-lg bg-white" value={form.modo} onChange={e => setForm({...form, modo: e.target.value})}>
                   <option value="">Selecione</option>
                   {MODOS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Gênero</label>
+                <select className="w-full p-2 border rounded-lg bg-white" value={form.genero} onChange={e => setForm({...form, genero: e.target.value})}>
+                  <option value="">Selecione</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                  <option value="O">O</option>
                 </select>
               </div>
 

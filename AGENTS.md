@@ -1,4 +1,4 @@
-<!-- última-sessão: 10/09/2026 — modelo de importação simplificado -->
+<!-- última-sessão: 12/09/2026 — ordenação Excel-like + busca GestaoAlunos -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.0
+- **Versão atual:** 0.2.4
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -175,6 +175,69 @@
 ### Arquivos
 - `src/utils/excel.js` (reescrito — simplificado)
 - `CHANGELOG.md` (v0.2.2)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK
+
+---
+
+## Sessão: 12/09/2026 — Categorias CBDA + Gênero + IDs Excel (v0.2.3)
+
+### O que foi feito
+- **Categorias CBDA reescritas**: de 6 categorias genéricas para 24 categorias baseadas em idade mínima
+  - Tabela `CATEGORIAS_CBDA` com lookup reverso (maior idade mínima ≤ idade do atleta)
+  - Cálculo de idade agora considera mês e dia (não apenas ano de nascimento)
+  - Categorias: Pré-Mirim, Mirim I/II, Petiz I/II, Infantil I/II, Juvenil I/II, Júnior I/II/Sênior, A20+ até M80+
+  - Dropdown de filtro de categorias atualizado com todas as 24 opções
+- **Gênero no grid**: adicionado campo de seleção de gênero (M/F/O) no formulário de registro
+  - Corrigido anti-pattern: `genero` agora faz parte do state inicial de `filtros` (removida mutação direta)
+  - Alunos do Fiz! mantêm seus dados de gênero; alunos Excel/Manual podem definir via formulário
+- **IDs de alunos Excel**: corrigido bug onde IDs gerados pelo Excel (`ID-0001`) eram descartados durante merge no localStorage
+  - Campo `id` agora é preservado ao adicionar alunos importados ao `alunosLocais`
+
+### Decisões
+- Categorias usam lookup reverso (itera de trás para frente) para encontrar a maior categoria aplicável
+- Gênero no formulário é opcional (não required) para manter compatibilidade com registros existentes
+- IDs Excel mantêm o padrão `ID-XXXX` já existente no `excel.js`
+
+### Arquivos
+- `src/App.jsx` (modificado — categorias, gênero, merge IDs)
+- `CHANGELOG.md` (v0.2.3)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK
+
+---
+
+## Sessão: 12/09/2026 — Ordenação Excel-like + Busca GestaoAlunos (v0.2.4)
+
+### O que foi feito
+- **Ordenação Excel-like**: todos os grids agora usam ciclo de 3 estados (asc → desc → sem ordenação)
+  - `handleSort` modificado para suportar `direcao: null` (sem ordenação)
+  - `dadosExibidos` só ordena quando `direcao !== null`
+  - Cabeçalhos de coluna só mostram setas quando ordenação está ativa
+  - Records Grid: colunas Aluno, Data Reg., Prova, Estilo, Tempo agora são ordenáveis
+  - Gestão de Alunos: colunas Nome, Data Nasc., Gênero, Categoria, Status são ordenáveis
+- **Busca Gestão de Alunos**: adicionado campo de busca por nome com botão de limpar (X)
+  - Filtra alunos por nome (case-insensitive, includes)
+  - Botão X reseta o termo de busca
+- **Records Grid Search**: adicionado botão de limpar (X) no campo "Buscar Aluno"
+  - Aparece apenas quando há texto no campo
+  - Reseta `filtros.nome` ao clicar
+
+### Decisões
+- Gestão de Alunos: busca somente por nome (decisão do usuário)
+- Colunas ordenáveis na gestão: 5 colunas (Nome, Data Nasc., Gênero, Categoria, Status) + ID e Origem não ordenáveis
+- Ciclo de ordenação: mesma coluna clicada 3 vezes volta ao estado sem ordenação
+
+### Arquivos
+- `src/App.jsx` (modificado — handleSort, dadosExibidos, clear button search)
+- `src/components/GestaoAlunos.jsx` (reescrito — ordenação, busca, clear button)
+- `CHANGELOG.md` (v0.2.4)
 - `AGENTS.md` (sessão adicionada)
 
 ### Typecheck
