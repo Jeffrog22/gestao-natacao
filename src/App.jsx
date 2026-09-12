@@ -377,10 +377,11 @@ export default function App() {
   const handleAtualizarAluno = (alunoId, dadosAtualizados) => {
     setAlunosLocais(prev => prev.map(a => a.id === alunoId ? { ...a, ...dadosAtualizados } : a));
     if (dadosAtualizados.genero !== undefined) {
-      const aluno = [...alunosSupabase, ...alunosLocais].find(a => a.id === alunoId);
+      const aluno = alunos.find(a => a.id === alunoId);
       if (aluno) {
+        const nomeAluno = aluno.nome.trim().toLowerCase();
         setRegistros(prev => prev.map(r =>
-          r.nome === aluno.nome ? { ...r, genero: dadosAtualizados.genero } : r
+          r.nome && r.nome.trim().toLowerCase() === nomeAluno ? { ...r, genero: dadosAtualizados.genero } : r
         ));
       }
     }
