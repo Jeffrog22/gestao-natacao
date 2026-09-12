@@ -104,7 +104,9 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno }) {
               <th onClick={() => handleSort('status')} className={thClass}>
                 <span className="flex items-center gap-1">Status <SortIcon campo="status" /></span>
               </th>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Origem</th>
+              <th onClick={() => handleSort('origem')} className={thClass}>
+                <span className="flex items-center gap-1">Origem <SortIcon campo="origem" /></span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
