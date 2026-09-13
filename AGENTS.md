@@ -1,4 +1,4 @@
-<!-- última-sessão: 13/09/2026 — unificação gênero/categoria grids (v0.2.6) -->
+<!-- última-sessão: 13/09/2026 — padronização gênero (v0.2.7) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.6
+- **Versão atual:** 0.2.7
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -303,3 +303,32 @@
 ### Typecheck
 - Build: OK
 - Lint: OK (6 erros pré-existentes: `SortIcon` definido dentro do render)
+
+---
+
+## Sessão: 13/09/2026 — Padronização de Gênero (v0.2.7)
+
+### O que foi feito
+- **Normalização de gênero**: adicionada função `normalizarGenero()` em `supabase.js`
+  - Mapeia valores do banco: `masculino`/`masc`→`M`, `feminino`/`fem`→`F`, `outro`→`O`
+  - Remove `'-'` (traço) e normaliza para `''` (vazio)
+  - Case-insensitive (aceita `Masculino`, `MASCULINO`, etc.)
+- **Filtro de gênero simplificado**: removida opção `'-'` das opções do filtro
+  - Antes: `['', 'M', 'F', 'O', '-']`
+  - Agora: `['', 'M', 'F', 'O']`
+  - `'-'` nunca foi um valor válido no formulário — era apenas resíduo de importações antigas
+
+### Decisões
+- Valor vazio (`''`) representa "sem gênero" em todos os contexts
+- Display visual continua mostrando `-` quando vazio (`|| '-'`) — apenas cosmético
+- `normalizarGenero()` é defensiva: qualquer valor não reconhecido vira `''`
+
+### Arquivos
+- `src/lib/supabase.js` (modificado — `normalizarGenero()`, mapeamento de `genero`)
+- `src/App.jsx` (modificado — removido `'-'` do filtro de gênero)
+- `CHANGELOG.md` (v0.2.7)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (6 erros pré-existentes)

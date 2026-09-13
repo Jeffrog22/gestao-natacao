@@ -484,7 +484,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.6</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.7</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -753,7 +753,7 @@ export default function App() {
                     {generoDropdownOpen && (
                       <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-32 p-2">
                         <div className="text-xs text-gray-500 mb-1">Filtrar por Gênero</div>
-                        {['', 'M','F','O','-'].map(opt => (
+                        {['', 'M','F','O'].map(opt => (
                           <button
                             key={opt}
                             onClick={() => { setFiltros({...filtros, genero: opt}); setGeneroDropdownOpen(false); }}

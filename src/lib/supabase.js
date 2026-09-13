@@ -4,6 +4,16 @@ const TENANT_ID = import.meta.env.VITE_TENANT_ID || 'bela-vista';
 
 let supabaseIdCounter = 0;
 
+const normalizarGenero = (valor) => {
+  if (!valor) return '';
+  const v = valor.trim().toLowerCase();
+  if (['m', 'masculino', 'masc'].includes(v)) return 'M';
+  if (['f', 'feminino', 'fem'].includes(v)) return 'F';
+  if (['o', 'outro'].includes(v)) return 'O';
+  if (v === '-') return '';
+  return '';
+};
+
 /**
  * Busca todos os alunos do Supabase via REST API (ativos e inativos)
  * @param {object} opts - Opções de filtro
@@ -46,7 +56,7 @@ export async function fetchAlunos({ nome, limit = 500 } = {}) {
       id: `SUP-${String(supabaseIdCounter).padStart(4, '0')}`,
       nome: r.nome || '',
       dataNascimento: r.data_nascimento || '',
-      genero: r.genero || '',
+      genero: normalizarGenero(r.genero),
       categoria: r.categoria || '',
       nivel: r.nivel || '',
       origem: 'supabase',

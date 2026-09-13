@@ -7,6 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.7] - 13/09/2026
+### Changed
+- **Padronização de gênero**: todos os valores normalizados para `M`/`F`/`O` (ou `''` para vazio)
+  - `supabase.js`: adicionada função `normalizarGenero()` que mapeia valores do banco (`masculino`→`M`, `feminino`→`F`, etc.)
+  - Filtro de gênero: removida opção `'-'` (traço) — agora apenas `Todos`/`M`/`F`/`O`
+  - Valor vazio (`''`) representa "sem gênero" em todos os contexts
+
 ## [v0.2.6] - 13/09/2026
 ### Changed
 - **Categoria unificada**: ambos os grids (Registros e Gestão) agora calculam `calcularCategoria()` em runtime
