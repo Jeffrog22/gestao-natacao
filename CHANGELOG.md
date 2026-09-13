@@ -7,6 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.10] - 13/09/2026
+### Fixed
+- **Sync automática de gênero**: adicionado `useEffect` que propaga gênero dos alunos para registros ao carregar
+  - Registros sem gênero (`''` ou `'-'`) recebem o gênero do aluno correspondente automaticamente
+  - Alunos do Supabase com F/M agora propagam para registros Excel sem gênero
+  - Roda uma vez ao carregar (quando `alunos` e `registros` estão disponíveis)
+
 ## [v0.2.9] - 13/09/2026
 ### Fixed
 - **Gênero '-' em registros Excel**: raiz do problema identificada — `excel.js` gravava `genero: '-'` (traço literal)

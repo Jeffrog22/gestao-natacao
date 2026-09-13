@@ -454,6 +454,27 @@ export default function App() {
     localStorage.setItem(STORAGE_KEYS.lixeira, JSON.stringify(lixeira));
   }, [lixeira]);
 
+  // Sync gênero dos alunos para registros sem gênero ao carregar
+  useEffect(() => {
+    if (alunos.length === 0 || registros.length === 0) return;
+    const alunosMapLocal = {};
+    alunos.forEach(a => { if (a.nome && a.genero) alunosMapLocal[normalizarNome(a.nome)] = a.genero; });
+    let atualizados = 0;
+    const novosRegistros = registros.map(r => {
+      if (!r.genero || r.genero === '-') {
+        const generoAluno = alunosMapLocal[normalizarNome(r.nome)];
+        if (generoAluno) {
+          atualizados++;
+          return { ...r, genero: generoAluno };
+        }
+      }
+      return r;
+    });
+    if (atualizados > 0) {
+      setRegistros(novosRegistros);
+    }
+  }, [alunos]);
+
   // --- Processamento de Dados (Memoized) ---
 
   const dadosExibidos = useMemo(() => {
@@ -495,7 +516,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.9</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.10</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas

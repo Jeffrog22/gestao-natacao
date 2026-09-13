@@ -1,4 +1,4 @@
-<!-- última-sessão: 13/09/2026 — fix gênero Excel + migração localStorage (v0.2.9) -->
+<!-- última-sessão: 13/09/2026 — sync gênero automática (v0.2.10) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.9
+- **Versão atual:** 0.2.10
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -385,6 +385,31 @@
 - `src/utils/excel.js` (modificado — `genero: ''` em vez de `'-'`)
 - `src/App.jsx` (modificado — migração one-time em `registros` e `alunosLocais`)
 - `CHANGELOG.md` (v0.2.9)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (6 erros pré-existentes)
+
+---
+
+## Sessão: 13/09/2026 — Sync Gênero Automática (v0.2.10)
+
+### O que foi feito
+- **Sync automática de gênero**: adicionado `useEffect` que roda quando `alunos` muda
+  - Cria um mapa `{ nomeNormalizado → genero }` a partir dos alunos com gênero definido
+  - Para cada registro sem gênero (`''` ou `'-'`), preenche com o gênero do aluno correspondente
+  - Se há atualizações, chama `setRegistros` para persistir
+- **Resolve o problema**: alunos do Supabase já tinham F/M, mas registros Excel ficavam com `-` porque a sync só acontecia na edição manual
+
+### Decisões
+- Sync roda uma vez ao carregar (dependência: `[alunos]`)
+- Só preenche registros **sem** gênero (não sobrescreve registros que já têm valor)
+- Usa `normalizarNome` para comparação robusta
+
+### Arquivos
+- `src/App.jsx` (modificado — `useEffect` de sync de gênero)
+- `CHANGELOG.md` (v0.2.10)
 - `AGENTS.md` (sessão adicionada)
 
 ### Typecheck
