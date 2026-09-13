@@ -7,6 +7,17 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.8] - 13/09/2026
+### Fixed
+- **Propagação de gênero corrigida**: `handleAtualizarAluno` agora normaliza nomes com `normalizarNome()` antes de comparar
+  - Espaços internos duplos agora são colapsados ("Maria  Silva" → "Maria Silva")
+  - Comparação case-insensitive com normalização completa
+
+### Changed
+- **`normalizarNome()`**: nova função utilitária que normaliza nomes (trim + lowercase + colapsa espaços)
+  - Aplicada em: `handleAtualizarAluno`, `dadosExibidos`, `alunosSugeridos`, `nomesBuscaSugeridos`, `GestaoAlunos`
+  - Remove inconsistências de formatação entre nomes de alunos e registros
+
 ## [v0.2.7] - 13/09/2026
 ### Changed
 - **Padronização de gênero**: todos os valores normalizados para `M`/`F`/`O` (ou `''` para vazio)

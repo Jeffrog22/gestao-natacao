@@ -8,6 +8,9 @@ const GENERO_OPTIONS = [
   { value: 'O', label: 'O' },
 ];
 
+const normalizarNome = (nome) =>
+  (nome || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
 /**
  * Aba de consulta de alunos com edição inline de gênero
  * @param {object} props
@@ -36,10 +39,10 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
   };
 
   const dadosFiltrados = useMemo(() => {
-    const termo = termoBusca.trim().toLowerCase();
+    const termo = normalizarNome(termoBusca);
     if (!termo) return alunos;
     return alunos.filter(a =>
-      (a.nome || '').toLowerCase().includes(termo)
+      normalizarNome(a.nome).includes(termo)
     );
   }, [alunos, termoBusca]);
 

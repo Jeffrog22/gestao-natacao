@@ -1,4 +1,4 @@
-<!-- última-sessão: 13/09/2026 — padronização gênero (v0.2.7) -->
+<!-- última-sessão: 13/09/2026 — fix propagação gênero + normalizarNome (v0.2.8) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.7
+- **Versão atual:** 0.2.8
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -327,6 +327,35 @@
 - `src/lib/supabase.js` (modificado — `normalizarGenero()`, mapeamento de `genero`)
 - `src/App.jsx` (modificado — removido `'-'` do filtro de gênero)
 - `CHANGELOG.md` (v0.2.7)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (6 erros pré-existentes)
+
+---
+
+## Sessão: 13/09/2026 — Fix Propagação Gênero + normalizarNome (v0.2.8)
+
+### O que foi feito
+- **`normalizarNome()`**: nova função utilitária (App.jsx + GestaoAlunos.jsx)
+  - `trim()` + `toLowerCase()` + colapsa espaços internos (`\s+` → `' '`)
+  - Resolve inconsistências: "Maria  Silva" = "Maria Silva" = " maria silva "
+- **`handleAtualizarAluno`**: agora usa `normalizarNome()` para comparar nomes
+  - Antes: `r.nome.trim().toLowerCase() === aluno.nome.trim().toLowerCase()` (frágil)
+  - Agora: `normalizarNome(r.nome) === normalizarNome(aluno.nome)` (robusto)
+- **Filtros de busca**: `dadosExibidos`, `alunosSugeridos`, `nomesBuscaSugeridos` agora usam `normalizarNome`
+- **GestaoAlunos.jsx**: filtro de busca do grid de gestão também normaliza nomes
+
+### Decisões
+- `normalizarNome` duplicada em ambos os arquivos (App.jsx + GestaoAlunos.jsx) para manter componentes independentes
+- Função é idempotente e case-insensitive
+- Colapsa espaços internos com regex `\s+` → `' '`
+
+### Arquivos
+- `src/App.jsx` (modificado — `normalizarNome`, `handleAtualizarAluno`, filtros, suggestions)
+- `src/components/GestaoAlunos.jsx` (modificado — `normalizarNome`, filtro de busca)
+- `CHANGELOG.md` (v0.2.8)
 - `AGENTS.md` (sessão adicionada)
 
 ### Typecheck

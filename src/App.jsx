@@ -101,6 +101,9 @@ const calcularCategoria = (dataNascimento, dataRegistro) => {
   return categoria;
 };
 
+const normalizarNome = (nome) =>
+  (nome || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
 const formatTempoFromDigits = (digits) => {
   const padded = String(digits).padStart(6, '0').slice(-6);
   const mm = padded.slice(0, 2);
@@ -379,9 +382,9 @@ export default function App() {
     if (dadosAtualizados.genero !== undefined) {
       const aluno = alunos.find(a => a.id === alunoId);
       if (aluno) {
-        const nomeAluno = aluno.nome.trim().toLowerCase();
+        const nomeAluno = normalizarNome(aluno.nome);
         setRegistros(prev => prev.map(r =>
-          r.nome && r.nome.trim().toLowerCase() === nomeAluno ? { ...r, genero: dadosAtualizados.genero } : r
+          normalizarNome(r.nome) === nomeAluno ? { ...r, genero: dadosAtualizados.genero } : r
         ));
       }
     }
@@ -395,19 +398,19 @@ export default function App() {
   const tempoNormalizadoForm = normalizeTempoInput(form.tempo);
   const tempoInvalidoNoForm = form.tempo !== '' && !isTempoValido(tempoNormalizadoForm);
   const alunosSugeridos = useMemo(() => {
-    const nomesUnicos = Array.from(new Set(alunos.map(a => (a.nome || '').trim()).filter(Boolean)));
-    const termo = alunoBusca.trim().toLowerCase();
+    const nomesUnicos = Array.from(new Set(alunos.map(a => normalizarNome(a.nome)).filter(Boolean)));
+    const termo = normalizarNome(alunoBusca);
     if (!termo) return nomesUnicos.slice(0, 8);
-    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+    return nomesUnicos.filter(nome => nome.includes(termo)).slice(0, 8);
   }, [alunos, alunoBusca]);
 
   const nomesBuscaSugeridos = useMemo(() => {
-    const nomesRegistros = registros.map(r => (r.nome || '').trim()).filter(Boolean);
-    const nomesAlunos = alunos.map(a => (a.nome || '').trim()).filter(Boolean);
+    const nomesRegistros = registros.map(r => normalizarNome(r.nome)).filter(Boolean);
+    const nomesAlunos = alunos.map(a => normalizarNome(a.nome)).filter(Boolean);
     const nomesUnicos = Array.from(new Set([...nomesRegistros, ...nomesAlunos]));
-    const termo = (filtros.nome || '').trim().toLowerCase();
+    const termo = normalizarNome(filtros.nome);
     if (!termo) return nomesUnicos.slice(0, 8);
-    return nomesUnicos.filter(nome => nome.toLowerCase().includes(termo)).slice(0, 8);
+    return nomesUnicos.filter(nome => nome.includes(termo)).slice(0, 8);
   }, [registros, alunos, filtros.nome]);
 
   const alunosStatusMap = useMemo(() => {
@@ -451,7 +454,7 @@ export default function App() {
     let dadosFiltrados = fonte.filter(item => {
       const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
       return (
-        item.nome.toLowerCase().includes(filtros.nome.toLowerCase()) &&
+        normalizarNome(item.nome).includes(normalizarNome(filtros.nome)) &&
         (filtros.prova === '' || item.prova === filtros.prova) &&
         (filtros.estilo === '' || item.estilo === filtros.estilo) &&
         (filtros.modo === '' || item.modo === filtros.modo) &&
@@ -484,7 +487,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.7</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.8</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
