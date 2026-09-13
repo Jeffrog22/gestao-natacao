@@ -145,7 +145,14 @@ const isTempoValido = (tempo) => {
 
 export default function App() {
   // Estado dos Dados Iniciais
-  const [registros, setRegistros] = useState(() => loadFromStorage(STORAGE_KEYS.registros, []));
+  const [registros, setRegistros] = useState(() => {
+    const dados = loadFromStorage(STORAGE_KEYS.registros, []);
+    const normalizados = dados.map(r => ({ ...r, genero: (r.genero === '-') ? '' : (r.genero || '') }));
+    if (normalizados.some((r, i) => r.genero !== dados[i]?.genero)) {
+      localStorage.setItem(STORAGE_KEYS.registros, JSON.stringify(normalizados));
+    }
+    return normalizados;
+  });
 
   const [alunosLocais, setAlunosLocais] = useState(() => {
     const dados = loadFromStorage(STORAGE_KEYS.alunos, []);
@@ -153,13 +160,14 @@ export default function App() {
     const existentes = new Set();
     dados.forEach(a => { if (a.id) { const num = parseInt(String(a.id).replace(/\D/g, ''), 10); if (!isNaN(num)) existentes.add(num); } });
     const normalizados = dados.map(a => {
-      if (a.id) return a;
+      const genero = (a.genero === '-') ? '' : (a.genero || '');
+      if (a.id) return { ...a, genero };
       counter++;
       while (existentes.has(counter)) counter++;
       existentes.add(counter);
-      return { ...a, id: `ID-${String(counter).padStart(4, '0')}` };
+      return { ...a, id: `ID-${String(counter).padStart(4, '0')}`, genero };
     });
-    if (normalizados.some((a, i) => a.id !== dados[i]?.id)) {
+    if (normalizados.some((a, i) => a.id !== dados[i]?.id || a.genero !== dados[i]?.genero)) {
       localStorage.setItem(STORAGE_KEYS.alunos, JSON.stringify(normalizados));
     }
     return normalizados;
@@ -487,7 +495,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.8</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.9</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas

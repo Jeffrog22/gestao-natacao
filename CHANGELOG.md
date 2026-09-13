@@ -7,6 +7,13 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.9] - 13/09/2026
+### Fixed
+- **Gênero '-' em registros Excel**: raiz do problema identificada — `excel.js` gravava `genero: '-'` (traço literal)
+  - Corrigido para `genero: ''` (string vazia) em registros e alunos derivados
+  - **Migração one-time**: registros e alunos carregados do `localStorage` com `genero: '-'` são convertidos automaticamente para `''`
+  - Resolve o problema de "alguns registros mantêm '-' em gênero"
+
 ## [v0.2.8] - 13/09/2026
 ### Fixed
 - **Propagação de gênero corrigida**: `handleAtualizarAluno` agora normaliza nomes com `normalizarNome()` antes de comparar

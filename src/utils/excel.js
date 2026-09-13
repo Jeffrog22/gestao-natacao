@@ -196,7 +196,7 @@ export async function parseExcelFile(file) {
         dataNascimento: dataNiso,
         dataRegistro: dataRiso,
         tempo,
-        genero: '-',
+        genero: '',
         prova: provaVal ? String(provaVal).trim() : '',
         estilo: estiloVal ? String(estiloVal).trim() : '',
         modo: modoVal ? String(modoVal).trim() : ''
@@ -215,7 +215,7 @@ export async function parseExcelFile(file) {
         id: `ID-${String(idCounter).padStart(4, '0')}`,
         nome: reg.nome,
         dataNascimento: reg.dataNascimento,
-        genero: '-',
+        genero: '',
         categoria: '',
         origem: 'excel',
         status: 'ativo'

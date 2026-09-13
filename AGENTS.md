@@ -1,4 +1,4 @@
-<!-- última-sessão: 13/09/2026 — fix propagação gênero + normalizarNome (v0.2.8) -->
+<!-- última-sessão: 13/09/2026 — fix gênero Excel + migração localStorage (v0.2.9) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.8
+- **Versão atual:** 0.2.9
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -356,6 +356,35 @@
 - `src/App.jsx` (modificado — `normalizarNome`, `handleAtualizarAluno`, filtros, suggestions)
 - `src/components/GestaoAlunos.jsx` (modificado — `normalizarNome`, filtro de busca)
 - `CHANGELOG.md` (v0.2.8)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (6 erros pré-existentes)
+
+---
+
+## Sessão: 13/09/2026 — Fix Gênero Excel + Migração localStorage (v0.2.9)
+
+### O que foi feito
+- **Causa raiz identificada**: `excel.js` gravava `genero: '-'` (traço literal) em registros importados e alunos derivados
+  - Linha 199: `genero: '-'` → `genero: ''` (registros)
+  - Linha 218: `genero: '-'` → `genero: ''` (alunos derivados)
+- **Migração one-time no `useState` inicial**:
+  - `registros`: converte `genero: '-'` → `''` ao carregar do `localStorage`
+  - `alunosLocais`: converte `genero: '-'` → `''` ao carregar do `localStorage`
+  - Persiste a migração no `localStorage` (executa uma vez)
+- **Display `item.genero || '-'`** agora funciona corretamente: registros Excel com `genero: ''` mostram `-` visual, mas o valor interno é consistente
+
+### Decisões
+- Migração é executada no `useState` initializer (roda uma vez por carregamento da página)
+- `normalizarNome` já existente (v0.2.8) garante que a propagação de gênero funciona após a migração
+- Não é necessário cache busting — a migração converte dados no primeiro acesso
+
+### Arquivos
+- `src/utils/excel.js` (modificado — `genero: ''` em vez de `'-'`)
+- `src/App.jsx` (modificado — migração one-time em `registros` e `alunosLocais`)
+- `CHANGELOG.md` (v0.2.9)
 - `AGENTS.md` (sessão adicionada)
 
 ### Typecheck
