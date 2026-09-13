@@ -418,12 +418,6 @@ export default function App() {
     return map;
   }, [alunos]);
 
-  const alunosMap = useMemo(() => {
-    const map = {};
-    alunos.forEach(a => { if (a.nome) map[a.nome.trim()] = a; });
-    return map;
-  }, [alunos]);
-
   const selecionarAluno = (nomeSelecionado) => {
     const aluno = alunos.find(a => a.nome === nomeSelecionado);
     setForm(prev => ({
@@ -456,14 +450,13 @@ export default function App() {
 
     let dadosFiltrados = fonte.filter(item => {
       const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
-      const generoItem = (item.genero && item.genero !== '-') ? item.genero : (alunosMap[item.nome?.trim()]?.genero || '-');
       return (
         item.nome.toLowerCase().includes(filtros.nome.toLowerCase()) &&
         (filtros.prova === '' || item.prova === filtros.prova) &&
         (filtros.estilo === '' || item.estilo === filtros.estilo) &&
         (filtros.modo === '' || item.modo === filtros.modo) &&
         (filtros.categoria === '' || categoriaHistorica === filtros.categoria) &&
-        (filtros.genero === '' || generoItem === filtros.genero)
+        (filtros.genero === '' || (item.genero || '-') === filtros.genero)
       );
     });
 
@@ -491,7 +484,7 @@ export default function App() {
           <div>
             <h1 className="text-3xl font-bold text-blue-900">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.5</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.6</span>
             </h1>
             <p className="text-gray-500">
               Acompanhamento histórico e evolução de atletas
@@ -571,6 +564,7 @@ export default function App() {
             alunos={alunosParaGestao}
             onSelecionarAluno={selecionarAlunoParaGrid}
             onAtualizarAluno={handleAtualizarAluno}
+            onCalcularCategoria={calcularCategoria}
           />
         ) : abaAtiva === 'graficos' ? (
           <Graficos alunos={alunos} registros={registros} />
@@ -807,7 +801,7 @@ export default function App() {
                           {item.modo}
                         </span>
                       </td>
-                      <td className="p-4 text-center font-bold">{(item.genero && item.genero !== '-') ? item.genero : (alunosMap[item.nome?.trim()]?.genero || '-')}</td>
+                      <td className="p-4 text-center font-bold">{item.genero || '-'}</td>
                       <td className="p-4 text-right">
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {abaAtiva === 'ativos' ? (

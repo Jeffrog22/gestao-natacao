@@ -1,4 +1,4 @@
-<!-- última-sessão: 12/09/2026 — propagação gênero + IDs retroativos (v0.2.5) -->
+<!-- última-sessão: 13/09/2026 — unificação gênero/categoria grids (v0.2.6) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.5
+- **Versão atual:** 0.2.6
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -274,3 +274,32 @@
 ### Typecheck
 - Build: OK
 - Lint: OK
+
+---
+
+## Sessão: 13/09/2026 — Unificação Gênero/Categoria nos Grids (v0.2.6)
+
+### O que foi feito
+- **Categoria unificada**: ambos os grids agora calculam `calcularCategoria()` em runtime
+  - Grid de Registros (App.jsx): usa `dataRegistro` do item (já existia)
+  - Grid de Gestão (GestaoAlunos.jsx): usa data atual como referência (nova prop `onCalcularCategoria`)
+- **Gênero unificado**: ambos os grids exibem `item.genero || '-'` diretamente
+  - Grid de Registros: removido fallback `alunosMap[item.nome]?.genero`
+  - Grid de Gestão: já usava campo direto (sem mudança)
+- **Removido `alunosMap`**: não era mais necessário (era usado apenas no fallback de gênero)
+- **Removida variável `generoItem`** do filtro `dadosExibidos`: agora usa `(item.genero || '-') === filtros.genero`
+
+### Decisões
+- Na gestão de alunos, `onCalcularCategoria` usa **data atual** como `dataRegistro` para exibir a categoria atual do atleta
+- Gênero é campo direto (sem fallback) — registros antigos com `genero: '-'` mostram `-`
+- `alunosMap` removido para manter código limpo (não tinha mais uso)
+
+### Arquivos
+- `src/components/GestaoAlunos.jsx` (modificado — prop `onCalcularCategoria`, cálculo de categoria em runtime)
+- `src/App.jsx` (modificado — prop `onCalcularCategoria`, removido fallback gênero, removido `alunosMap`)
+- `CHANGELOG.md` (v0.2.6)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (6 erros pré-existentes: `SortIcon` definido dentro do render)

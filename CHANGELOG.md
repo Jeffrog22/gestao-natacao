@@ -7,6 +7,14 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.2.6] - 13/09/2026
+### Changed
+- **Categoria unificada**: ambos os grids (Registros e Gestão) agora calculam `calcularCategoria()` em runtime
+  - Grid de Registros: usa `dataRegistro` do item
+  - Grid de Gestão: usa data atual (categoria atual do atleta)
+- **Gênero unificado**: ambos os grids exibem `item.genero || '-'` diretamente, sem fallback
+- Removido `alunosMap` (era usado apenas no fallback de gênero removido)
+
 ## [v0.2.5] - 12/09/2026
 ### Fixed
 - **Propagação de gênero**: ao editar gênero de uma aluna na gestão, o valor é propagado para todos os registros dela

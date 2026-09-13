@@ -14,8 +14,9 @@ const GENERO_OPTIONS = [
  * @param {Array} props.alunos - Lista unificada de alunos
  * @param {Function} props.onSelecionarAluno - Duplo-clique: carrega registros do aluno
  * @param {Function} props.onAtualizarAluno - Atualiza aluno + propaga para registros
+ * @param {Function} props.onCalcularCategoria - Calcula categoria CBDA (dataNascimento, dataRegistro)
  */
-export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAluno }) {
+export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAluno, onCalcularCategoria }) {
   const [termoBusca, setTermoBusca] = useState('');
   const [ordenacao, setOrdenacao] = useState({ campo: 'nome', direcao: 'asc' });
   const [editandoGenero, setEditandoGenero] = useState(null);
@@ -168,7 +169,11 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
                       </button>
                     )}
                   </td>
-                  <td className="p-3 text-gray-600">{aluno.categoria || '-'}</td>
+                  <td className="p-3 text-gray-600">
+                    {onCalcularCategoria
+                      ? onCalcularCategoria(aluno.dataNascimento, new Date().toISOString().split('T')[0])
+                      : (aluno.categoria || '-')}
+                  </td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       aluno.status === 'ativo'
