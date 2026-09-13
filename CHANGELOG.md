@@ -7,6 +7,20 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 
 ## [Unreleased]
 
+## [v0.3.0] - 13/09/2026
+### Changed
+- **Design System completo**: identidade visual do app Chamadas aplicada em todo o projeto
+  - Paleta `primary` (azul #2563eb) substitui `blue-*` em todo o app
+  - Dark mode com toggle (sun/moon) no header, persistência em localStorage + fallback `prefers-color-scheme`
+  - Fonte Inter carregada via CSS, `-webkit-font-smoothing: antialiased`
+  - `darkMode: 'class'` no Tailwind config
+- **`tailwind.config.js`**: paleta `primary` 50-900, fontFamily Inter
+- **`index.css`**: font-face Inter, `.animate-shake`, dark globals para inputs/selects/textarea, accent-color
+- **`index.html`**: `theme-color` atualizado para `#2563eb`
+- **`App.jsx`**: todas as classes migradas para primary + dark mode em todos os elementos (page, header, tabs, cards, inputs, selects, modais, dropdowns, badges, tabelas, buttons)
+- **`GestaoAlunos.jsx`**: dark mode em tabela, badges, inputs, search, edit inline de gênero
+- **`Graficos.jsx`**: dark mode em cards, selects, labels, empty states
+
 ## [v0.2.10] - 13/09/2026
 ### Fixed
 - **Sync automática de gênero**: adicionado `useEffect` que propaga gênero dos alunos para registros ao carregar

@@ -65,7 +65,7 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
     return { total: alunos.length, ativos, inativos };
   }, [alunos]);
 
-  const thClass = "p-3 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none";
+  const thClass = "p-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 select-none";
 
   const handleGeneroChange = (aluno, novoGenero) => {
     if (onAtualizarAluno) {
@@ -78,17 +78,17 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-800">Gestão de Alunos</h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Gestão de Alunos</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {stats.total} aluno(s) • {stats.ativos} ativo(s) • {stats.inativos} inativo(s)
           </p>
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+          <Search className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500" size={16} />
           <input
             type="text"
             placeholder="Buscar aluno..."
-            className="pl-9 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm w-64"
+            className="w-64 pl-9 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
             value={termoBusca}
             onChange={e => setTermoBusca(e.target.value)}
           />
@@ -96,7 +96,7 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
             <button
               type="button"
               onClick={() => setTermoBusca('')}
-              className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+              className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
             >
               <X size={16} />
             </button>
@@ -104,11 +104,11 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700 overflow-hidden">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 border-b border-gray-200">
+          <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
             <tr>
-              <th className="p-3 text-xs font-bold text-gray-500 uppercase tracking-wider">ID</th>
+              <th className="p-3 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">ID</th>
               <th onClick={() => handleSort('nome')} className={thClass}>
                 <span className="flex items-center gap-1">Nome <SortIcon campo="nome" /></span>
               </th>
@@ -129,10 +129,10 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
             {alunosOrdenados.length === 0 ? (
               <tr>
-                <td colSpan="7" className="p-8 text-center text-gray-400">
+                <td colSpan="7" className="p-8 text-center text-gray-400 dark:text-gray-500">
                   Nenhum aluno encontrado.
                 </td>
               </tr>
@@ -140,20 +140,20 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
               alunosOrdenados.map((aluno) => (
                 <tr
                   key={aluno.id}
-                  className="hover:bg-blue-50 transition-colors cursor-pointer"
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer"
                   onDoubleClick={() => onSelecionarAluno(aluno.nome)}
                   title="Duplo-clique para ver registros deste aluno"
                 >
-                  <td className="p-3 font-mono text-xs text-gray-600">{aluno.id}</td>
-                  <td className="p-3 font-medium text-gray-900">{aluno.nome}</td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 font-mono text-xs text-gray-600 dark:text-gray-400">{aluno.id}</td>
+                  <td className="p-3 font-medium text-gray-900 dark:text-gray-100">{aluno.nome}</td>
+                  <td className="p-3 text-gray-600 dark:text-gray-400">
                     {aluno.dataNascimento ? new Date(aluno.dataNascimento + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}
                   </td>
-                  <td className="p-3 text-gray-600 relative">
+                  <td className="p-3 text-gray-600 dark:text-gray-400 relative">
                     {editandoGenero === aluno.id ? (
                       <select
                         autoFocus
-                        className="border border-blue-400 rounded px-1 py-0.5 text-xs bg-white"
+                        className="border border-primary-400 dark:border-primary-500 rounded px-1 py-0.5 text-xs bg-white dark:bg-gray-700 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-primary-500"
                         value={aluno.genero || ''}
                         onChange={e => handleGeneroChange(aluno, e.target.value)}
                         onBlur={() => setEditandoGenero(null)}
@@ -165,32 +165,32 @@ export default function GestaoAlunos({ alunos, onSelecionarAluno, onAtualizarAlu
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); setEditandoGenero(aluno.id); }}
-                        className="hover:bg-blue-100 px-1 rounded cursor-pointer"
+                        className="hover:bg-primary-100 dark:hover:bg-primary-900/30 px-1 rounded cursor-pointer transition-colors"
                         title="Clique para editar gênero"
                       >
                         {aluno.genero || '-'}
                       </button>
                     )}
                   </td>
-                  <td className="p-3 text-gray-600">
+                  <td className="p-3 text-gray-600 dark:text-gray-400">
                     {onCalcularCategoria
                       ? onCalcularCategoria(aluno.dataNascimento, new Date().toISOString().split('T')[0])
                       : (aluno.categoria || '-')}
                   </td>
                   <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                       aluno.status === 'ativo'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-amber-100 text-amber-700'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
                     }`}>
                       {aluno.status === 'ativo' ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
                   <td className="p-3">
                     <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                      aluno.origem === 'supabase' ? 'bg-blue-100 text-blue-700' :
-                      aluno.origem === 'excel' ? 'bg-purple-100 text-purple-700' :
-                      'bg-gray-100 text-gray-700'
+                      aluno.origem === 'supabase' ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' :
+                      aluno.origem === 'excel' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' :
+                      'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                     }`}>
                       {aluno.origem === 'supabase' ? 'Fiz!' : aluno.origem === 'excel' ? 'Excel' : 'Manual'}
                     </span>

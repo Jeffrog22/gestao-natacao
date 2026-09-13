@@ -1,4 +1,4 @@
-<!-- última-sessão: 13/09/2026 — sync gênero automática (v0.2.10) -->
+<!-- última-sessão: 13/09/2026 — design system completo (v0.3.0) -->
 # AGENTS.md — Histórico Completo do Projeto
 
 ## Regras de Ouro
@@ -18,7 +18,7 @@
 - **Nome:** Registro de Tempos
 - **Descrição:** Aplicativo web para registro e gestão de tempos de natação de atletas
 - **Repositório:** `https://github.com/Jeffrog22/gestao-natacao`
-- **Versão atual:** 0.2.10
+- **Versão atual:** 0.3.0
 - **Stack:** React 19 + Vite 7 + Tailwind CSS 3 + ExcelJS
 - **Deploy:** Cloudflare Pages (`https://registro-tempos.pages.dev/`)
 - **Backend de dados:** Supabase (tabela `alunos` do Fiz App)
@@ -415,3 +415,35 @@
 ### Typecheck
 - Build: OK
 - Lint: OK (6 erros pré-existentes)
+
+---
+
+## Sessão: 13/09/2026 — Design System Completo (v0.3.0)
+
+### O que foi feito
+- **Design System do app Chamadas**: identidade visual replicada em todo o projeto
+  - Paleta `primary` (azul #2563eb) substitui `blue-*` em todos os componentes
+  - Dark mode: toggle sun/moon no header, persistência localStorage + fallback `prefers-color-scheme`
+  - Fonte Inter via Google Fonts, `-webkit-font-smoothing: antialiased`
+  - Animação `.animate-shake` para erros de input
+  - Dark globals CSS para inputs, selects, textarea e accent-color
+
+### Decisões
+- `darkMode: 'class'` no Tailwind (controle manual via state + useEffect)
+- Primary em TODOS os usos de blue (consistência total)
+- Toggle de dark mode no header (acesso rápido)
+- Sem design tokens CSS — tudo via classes Tailwind (matches design system original)
+
+### Arquivos
+- `tailwind.config.js` (modificado — darkMode, paleta primary, fontFamily)
+- `src/index.css` (modificado — font Inter, dark globals, animate-shake)
+- `index.html` (modificado — theme-color #2563eb)
+- `src/App.jsx` (reescrito — primary + dark mode completo + toggle)
+- `src/components/GestaoAlunos.jsx` (modificado — primary + dark mode)
+- `src/components/Graficos.jsx` (modificado — primary + dark mode)
+- `CHANGELOG.md` (v0.3.0)
+- `AGENTS.md` (sessão adicionada)
+
+### Typecheck
+- Build: OK
+- Lint: OK (7 erros pré-existentes)

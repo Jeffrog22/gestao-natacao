@@ -10,7 +10,9 @@ import {
   X,
   FileUp,
   Users,
-  BarChart3
+  BarChart3,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { parseExcelFile } from './utils/excel';
 import { useAlunosSupabase } from './hooks/useAlunosSupabase';
@@ -34,7 +36,8 @@ const MODOS = ['Aula', 'Festival', 'Competição'];
 const STORAGE_KEYS = {
   registros: 'registro-tempos:registros',
   alunos: 'registro-tempos:alunos',
-  lixeira: 'registro-tempos:lixeira'
+  lixeira: 'registro-tempos:lixeira',
+  darkMode: 'registro-tempos:darkMode'
 };
 
 const loadFromStorage = (key, fallback = []) => {
@@ -46,6 +49,14 @@ const loadFromStorage = (key, fallback = []) => {
   } catch {
     return fallback;
   }
+};
+
+const loadDarkMode = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.darkMode);
+    if (raw !== null) return JSON.parse(raw);
+  } catch {}
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
 };
 
 // Tabela de Categorias CBDA (Baseada na idade mínima na época do registro)
@@ -144,6 +155,19 @@ const isTempoValido = (tempo) => {
 // --- Componente Principal ---
 
 export default function App() {
+  // Estado do Dark Mode
+  const [darkMode, setDarkMode] = useState(loadDarkMode);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (darkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem(STORAGE_KEYS.darkMode, JSON.stringify(darkMode));
+  }, [darkMode]);
+
   // Estado dos Dados Iniciais
   const [registros, setRegistros] = useState(() => {
     const dados = loadFromStorage(STORAGE_KEYS.registros, []);
@@ -211,7 +235,6 @@ export default function App() {
 
     try {
       const parsed = await parseExcelFile(file);
-      // parseExcelFile agora retorna { registros, alunos }
       const registrosImportados = parsed.registros || [];
       const alunosImportados = parsed.alunos || [];
 
@@ -220,7 +243,6 @@ export default function App() {
 
       if (alunosImportados.length > 0) {
         setAlunosLocais(prev => {
-          // merge unique by normalized name or codigo
           const existing = [...prev];
           const names = new Set(existing.map(x => x.nome));
           alunosImportados.forEach(a => {
@@ -235,34 +257,24 @@ export default function App() {
         return;
       }
 
-      // Atribuir IDs únicos aos registros importados
       const registrosComIds = registrosImportados.map((reg, idx) => ({ ...reg, id: Date.now() + idx }));
-
-      // Adicionar aos registros existentes
       setRegistros(prev => [...prev, ...registrosComIds]);
-
       alert(`${registrosComIds.length} registro(s) importado(s) com sucesso!`);
     } catch (error) {
       alert(`Erro ao importar arquivo: ${error.message}`);
     } finally {
-      // Limpar o input para permitir reimportar o mesmo arquivo
       e.target.value = '';
     }
   };
 
-  // Exportar registros para arquivo XLSX
   const exportRegistrosToExcel = async () => {
     try {
       const workbook = new ExcelJS.Workbook();
       const sheet = workbook.addWorksheet('DBregistros');
-
-      // Cabeçalhos
       sheet.addRow(['Nome','DataNascimento','DataRegistro','Tempo','Prova','Estilo','Modo','Categoria','Genero']);
-
       registros.forEach(r => {
         sheet.addRow([r.nome || '', r.dataNascimento || '', r.dataRegistro || '', r.tempo || '', r.prova || '', r.estilo || '', r.modo || '', r.categoria || '', r.genero || '']);
       });
-
       const buf = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
@@ -508,24 +520,24 @@ export default function App() {
   // --- Renderização ---
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 font-sans text-gray-800">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 p-8 font-sans text-gray-800 dark:text-gray-100 transition-colors">
       <div className="max-w-7xl mx-auto">
         
         {/* Cabeçalho */}
         <header className="mb-8 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-blue-900">
+            <h1 className="text-3xl font-bold text-primary-600 dark:text-primary-400">
               Gestão de Tempos de Natação
-              <span className="ml-2 text-[10px] font-normal text-gray-400 align-super">v0.2.10</span>
+              <span className="ml-2 text-[10px] font-normal text-gray-400 dark:text-gray-500 align-super">v0.3.0</span>
             </h1>
-            <p className="text-gray-500">
+            <p className="text-gray-500 dark:text-gray-400">
               Acompanhamento histórico e evolução de atletas
-              {supabaseLoading && <span className="ml-2 text-xs text-blue-500">● Carregando alunos...</span>}
-              {!supabaseLoading && alunosSupabase.length > 0 && <span className="ml-2 text-xs text-green-600">● {alunosSupabase.length} alunos sincronizados</span>}
-              {!supabaseLoading && alunosSupabase.length === 0 && alunosLocais.length > 0 && <span className="ml-2 text-xs text-amber-600">● {alunosLocais.length} alunos locais</span>}
+              {supabaseLoading && <span className="ml-2 text-xs text-primary-500">● Carregando alunos...</span>}
+              {!supabaseLoading && alunosSupabase.length > 0 && <span className="ml-2 text-xs text-green-600 dark:text-green-400">● {alunosSupabase.length} alunos sincronizados</span>}
+              {!supabaseLoading && alunosSupabase.length === 0 && alunosLocais.length > 0 && <span className="ml-2 text-xs text-yellow-600 dark:text-yellow-400">● {alunosLocais.length} alunos locais</span>}
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <input
               id="import-xlsx-input"
               type="file"
@@ -535,56 +547,63 @@ export default function App() {
             />
             <label
               htmlFor="import-xlsx-input"
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors text-sm font-medium cursor-pointer"
             >
-              <FileUp size={20} /> Importar XLSX
+              <FileUp size={16} /> Importar XLSX
             </label>
             <button 
               onClick={exportRegistrosToExcel}
-              className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+              className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors text-sm font-medium"
             >
               Exportar XLSX
             </button>
             <button 
               onClick={() => setModalAberto(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors"
+              className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors text-sm font-medium"
             >
-              <Plus size={20} /> Novo Registro
+              <Plus size={16} /> Novo Registro
             </button>
             {alunosLocais.length > 0 && (
               <button 
                 onClick={limparDadosLocais}
-                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg flex items-center gap-2 shadow-sm transition-colors text-sm"
+                className="bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-4 py-2 rounded-md flex items-center gap-2 shadow-sm transition-colors text-sm font-medium"
               >
                 Limpar Dados Locais
               </button>
             )}
+            <button
+              onClick={() => setDarkMode(prev => !prev)}
+              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
+              title={darkMode ? 'Modo claro' : 'Modo escuro'}
+            >
+              {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
           </div>
         </header>
 
         {/* Abas de Navegação */}
-        <div className="flex gap-4 mb-6 border-b border-gray-200">
+        <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-700">
           <button 
             onClick={() => setAbaAtiva('ativos')}
-            className={`pb-2 px-4 font-medium ${abaAtiva === 'ativos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb-2 px-4 font-medium transition-colors ${abaAtiva === 'ativos' ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
             Registros Ativos ({registros.length})
           </button>
           <button 
             onClick={() => setAbaAtiva('alunos')}
-            className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'alunos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb-2 px-4 font-medium flex items-center gap-2 transition-colors ${abaAtiva === 'alunos' ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
             <Users size={16} /> Alunos ({alunos.length})
           </button>
           <button 
             onClick={() => setAbaAtiva('graficos')}
-            className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'graficos' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb-2 px-4 font-medium flex items-center gap-2 transition-colors ${abaAtiva === 'graficos' ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-600 dark:border-primary-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
             <BarChart3 size={16} /> Gráficos
           </button>
           <button 
             onClick={() => setAbaAtiva('lixeira')}
-            className={`pb-2 px-4 font-medium flex items-center gap-2 ${abaAtiva === 'lixeira' ? 'text-red-600 border-b-2 border-red-600' : 'text-gray-500 hover:text-gray-700'}`}
+            className={`pb-2 px-4 font-medium flex items-center gap-2 transition-colors ${abaAtiva === 'lixeira' ? 'text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}
           >
             <Trash2 size={16} /> Lixeira ({lixeira.length})
           </button>
@@ -603,15 +622,15 @@ export default function App() {
         ) : (
         <>
         {/* Barra de Filtros */}
-        <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-wrap gap-4 items-end border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 mb-6 flex flex-wrap gap-4 items-end border border-gray-200 dark:border-gray-700">
           <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Buscar Aluno</label>
+            <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Buscar Aluno</label>
             <div className="relative">
-              <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+              <Search className="absolute left-3 top-2.5 text-gray-400 dark:text-gray-500" size={18} />
               <input 
                 type="text" 
                 placeholder="Nome do atleta..." 
-                className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                className="w-full pl-10 pr-8 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
                 value={filtros.nome}
                 onFocus={() => {
                   setBuscaDropdownOpen(true);
@@ -650,14 +669,14 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => { setFiltros({...filtros, nome: ''}); setBuscaDropdownOpen(false); }}
-                  className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600"
+                  className="absolute right-2 top-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <X size={16} />
                 </button>
               )}
 
               {buscaDropdownOpen && nomesBuscaSugeridos.length > 0 && (
-                <div className="absolute z-40 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                <div className="absolute z-40 mt-1 w-full max-h-52 overflow-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg dark:shadow-black/20">
                   {nomesBuscaSugeridos.map((nome, idx) => (
                     <button
                       key={`${nome}-${idx}`}
@@ -667,11 +686,11 @@ export default function App() {
                         setBuscaDropdownOpen(false);
                         setBuscaIndiceAtivo(-1);
                       }}
-                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === buscaIndiceAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                      className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === buscaIndiceAtivo ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
                     >
                       <span>{nome}</span>
                       {alunosStatusMap[nome] === 'inativo' && (
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
+                        <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
                       )}
                     </button>
                   ))}
@@ -682,9 +701,9 @@ export default function App() {
           
           {['prova', 'estilo', 'modo'].map(campo => (
             <div key={campo} className="w-40">
-              <label className="block text-xs font-semibold text-gray-500 mb-1 capitalize">{campo}</label>
+              <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1 capitalize">{campo}</label>
               <select 
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
                 value={filtros[campo]}
                 onChange={e => {
                   const valor = e.target.value;
@@ -715,7 +734,7 @@ export default function App() {
 
           <button 
             onClick={limparFiltros}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors text-sm font-medium"
+            className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors text-sm font-medium px-4 py-1.5"
           >
             Limpar Filtros
           </button>
@@ -723,7 +742,7 @@ export default function App() {
           {abaAtiva === 'lixeira' && lixeira.length > 0 && (
              <button 
              onClick={limparLixeiraCompleta}
-             className="ml-auto px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 transition-colors text-sm font-medium flex items-center gap-2"
+             className="ml-auto border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-md transition-colors text-sm font-medium px-4 py-1.5 flex items-center gap-2"
            >
              <Trash2 size={16} /> Esvaziar Lixeira
            </button>
@@ -731,35 +750,32 @@ export default function App() {
         </div>
 
         {/* Grid de Dados */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700 overflow-hidden">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
               <tr>
-                {
-                  // Cabeçalhos customizados para tratar categoria e genero
-                }
-                <th onClick={() => handleSort('nome')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Aluno {ordenacao.campo === 'nome' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th onClick={() => handleSort('dataRegistro')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Data Reg.
+                <th onClick={() => handleSort('nome')} className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 relative">Aluno {ordenacao.campo === 'nome' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('dataRegistro')} className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 relative">Data Reg.
                   {ordenacao.campo === 'dataRegistro' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}
                 </th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
+                <th className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">
                   <div className="relative">
                     <button
                       onClick={(e) => { e.stopPropagation(); setCategoriaDropdownOpen(prev => !prev); }}
-                      className={`flex items-center gap-2 ${filtros.categoria ? 'text-white bg-indigo-600 px-2 py-1 rounded' : ''}`}
+                      className={`flex items-center gap-2 ${filtros.categoria ? 'text-white bg-primary-600 px-2 py-1 rounded' : ''}`}
                     >
                       CATEGORIA
                       <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
                     </button>
 
                     {categoriaDropdownOpen && (
-                      <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-40 p-2">
-                        <div className="text-xs text-gray-500 mb-1">Filtrar por Categoria</div>
+                      <div className="absolute z-50 mt-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg dark:shadow-black/20 w-40 p-2">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Filtrar por Categoria</div>
                         {['', ...CATEGORIAS_CBDA.map(c => c.nome), '-'].map(opt => (
                           <button
                             key={opt}
                             onClick={() => { setFiltros({...filtros, categoria: opt}); setCategoriaDropdownOpen(false); }}
-                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.categoria === opt ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.categoria === opt ? 'bg-primary-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                           >
                             {opt === '' ? 'Todos' : opt}
                           </button>
@@ -768,28 +784,28 @@ export default function App() {
                     )}
                   </div>
                 </th>
-                <th onClick={() => handleSort('prova')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Prova {ordenacao.campo === 'prova' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th onClick={() => handleSort('estilo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Estilo {ordenacao.campo === 'estilo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th onClick={() => handleSort('tempo')} className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 relative">Tempo {ordenacao.campo === 'tempo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">Modo</th>
-                <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider relative">
+                <th onClick={() => handleSort('prova')} className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 relative">Prova {ordenacao.campo === 'prova' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('estilo')} className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 relative">Estilo {ordenacao.campo === 'estilo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th onClick={() => handleSort('tempo')} className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 relative">Tempo {ordenacao.campo === 'tempo' && ordenacao.direcao && (ordenacao.direcao === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />)}</th>
+                <th className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">Modo</th>
+                <th className="p-4 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider relative">
                   <div className="relative">
                     <button
                       onClick={(e) => { e.stopPropagation(); setGeneroDropdownOpen(prev => !prev); }}
-                      className={`flex items-center gap-2 ${filtros.genero ? 'text-white bg-indigo-600 px-2 py-1 rounded' : ''}`}
+                      className={`flex items-center gap-2 ${filtros.genero ? 'text-white bg-primary-600 px-2 py-1 rounded' : ''}`}
                     >
                       GÊNERO
                       <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z" clipRule="evenodd" /></svg>
                     </button>
 
                     {generoDropdownOpen && (
-                      <div className="absolute z-50 mt-2 right-0 bg-white border rounded shadow-lg w-32 p-2">
-                        <div className="text-xs text-gray-500 mb-1">Filtrar por Gênero</div>
+                      <div className="absolute z-50 mt-2 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg dark:shadow-black/20 w-32 p-2">
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Filtrar por Gênero</div>
                         {['', 'M','F','O'].map(opt => (
                           <button
                             key={opt}
                             onClick={() => { setFiltros({...filtros, genero: opt}); setGeneroDropdownOpen(false); }}
-                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.genero === opt ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                            className={`block w-full text-left px-2 py-1 rounded text-sm ${filtros.genero === opt ? 'bg-primary-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                           >
                             {opt === '' ? 'Todos' : opt}
                           </button>
@@ -801,35 +817,35 @@ export default function App() {
                 <th className="p-4 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
               {dadosExibidos.length === 0 ? (
                 <tr>
-                  <td colSpan="9" className="p-8 text-center text-gray-400">Nenhum registro encontrado.</td>
+                  <td colSpan="9" className="p-8 text-center text-gray-400 dark:text-gray-500">Nenhum registro encontrado.</td>
                 </tr>
               ) : (
                 dadosExibidos.map((item) => {
                   const categoriaHistorica = item.categoria || calcularCategoria(item.dataNascimento, item.dataRegistro);
                   
                   return (
-                    <tr key={item.id} className="hover:bg-blue-50 transition-colors group">
-                      <td className="p-4 font-medium text-gray-900">{item.nome}</td>
-                      <td className="p-4 text-gray-600">{new Date(item.dataRegistro).toLocaleDateString('pt-BR')}</td>
+                    <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
+                      <td className="p-4 font-medium text-gray-900 dark:text-gray-100">{item.nome}</td>
+                      <td className="p-4 text-gray-600 dark:text-gray-400">{new Date(item.dataRegistro).toLocaleDateString('pt-BR')}</td>
                       <td className="p-4">
                         <button
                           onClick={() => setFiltros({...filtros, categoria: categoriaHistorica})}
-                          className={`px-2 py-1 rounded text-xs font-bold focus:outline-none ${filtros.categoria === categoriaHistorica ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'}`}
+                          className={`px-2 py-1 rounded text-xs font-bold focus:outline-none ${filtros.categoria === categoriaHistorica ? 'bg-primary-600 text-white' : 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 hover:bg-primary-200 dark:hover:bg-primary-900/50'}`}
                           title={`Filtrar por ${categoriaHistorica}`}
                         >
                           {categoriaHistorica}
                         </button>
                       </td>
-                      <td className="p-4 text-gray-600">{item.prova}</td>
-                      <td className="p-4 text-gray-600">{item.estilo}</td>
-                      <td className="p-4 font-mono font-medium text-gray-900">{item.tempo}</td>
+                      <td className="p-4 text-gray-600 dark:text-gray-400">{item.prova}</td>
+                      <td className="p-4 text-gray-600 dark:text-gray-400">{item.estilo}</td>
+                      <td className="p-4 font-mono tabular-nums font-medium text-gray-900 dark:text-gray-100">{item.tempo}</td>
                       <td className="p-4">
                         <span className={`px-2 py-1 rounded text-xs font-semibold 
-                          ${item.modo === 'Competição' ? 'bg-orange-100 text-orange-700' : 
-                            item.modo === 'Festival' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                          ${item.modo === 'Competição' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' : 
+                            item.modo === 'Festival' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
                           {item.modo}
                         </span>
                       </td>
@@ -838,19 +854,19 @@ export default function App() {
                         <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           {abaAtiva === 'ativos' ? (
                             <>
-                              <button onClick={() => abrirModalEdicao(item)} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded">
+                              <button onClick={() => abrirModalEdicao(item)} className="p-1.5 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/30 rounded">
                                 <Edit2 size={16} />
                               </button>
-                              <button onClick={() => moverParaLixeira(item.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded">
+                              <button onClick={() => moverParaLixeira(item.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded">
                                 <Trash2 size={16} />
                               </button>
                             </>
                           ) : (
                             <>
-                              <button onClick={() => restaurarDaLixeira(item.id)} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="Restaurar">
+                              <button onClick={() => restaurarDaLixeira(item.id)} className="p-1.5 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30 rounded" title="Restaurar">
                                 <RefreshCcw size={16} />
                               </button>
-                              <button onClick={() => excluirDefinitivamente(item.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="Excluir Definitivamente">
+                              <button onClick={() => excluirDefinitivamente(item.id)} className="p-1.5 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30 rounded" title="Excluir Definitivamente">
                                 <X size={16} />
                               </button>
                             </>
@@ -869,21 +885,21 @@ export default function App() {
 
       {/* Modal de Cadastro/Edição */}
       {modalAberto && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">{editandoId ? 'Editar Tempo' : 'Novo Registro de Tempo'}</h2>
-              <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl dark:shadow-black/20 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{editandoId ? 'Editar Tempo' : 'Novo Registro de Tempo'}</h2>
+              <button onClick={fecharModal} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><X size={20} /></button>
             </div>
             
-            <form onSubmit={salvarRegistro} className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nome do Aluno</label>
+            <form onSubmit={salvarRegistro} className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Nome do Aluno</label>
                 <div className="relative">
                   <input
                     required
                     type="text"
-                    className="w-full p-2 border rounded-lg bg-white"
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
                     placeholder="Digite para buscar aluno..."
                     value={alunoBusca}
                     onFocus={() => {
@@ -927,17 +943,17 @@ export default function App() {
                   />
 
                   {autocompleteAberto && alunosSugeridos.length > 0 && (
-                    <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                    <div className="absolute z-50 mt-1 w-full max-h-52 overflow-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg dark:shadow-black/20">
                       {alunosSugeridos.map((nome, idx) => (
                         <button
                           key={`${nome}-${idx}`}
                           type="button"
                           onMouseDown={() => selecionarAluno(nome)}
-                          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === indiceAlunoAtivo ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50 text-gray-700'}`}
+                          className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${idx === indiceAlunoAtivo ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'}`}
                         >
                           <span>{nome}</span>
                           {alunosStatusMap[nome] === 'inativo' && (
-                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
+                            <span className="text-[10px] bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-400 px-1.5 py-0.5 rounded-full whitespace-nowrap">Inativo</span>
                           )}
                         </button>
                       ))}
@@ -946,90 +962,94 @@ export default function App() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data do Registro</label>
-                <input required type="date" className="w-full p-2 border rounded-lg" value={form.dataRegistro} onChange={e => setForm({...form, dataRegistro: e.target.value})} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Data do Registro</label>
+                  <input required type="date" className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100" value={form.dataRegistro} onChange={e => setForm({...form, dataRegistro: e.target.value})} />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Modo/Evento</label>
+                  <select required className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100" value={form.modo} onChange={e => setForm({...form, modo: e.target.value})}>
+                    <option value="">Selecione</option>
+                    {MODOS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* Exibição da Categoria Calculada no Form */}
-              <div className="col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-100 flex justify-between items-center">
-                <span className="text-sm text-blue-800">Categoria calculada para esta data:</span>
-                <span className="font-bold text-blue-900">{calcularCategoria(form.dataNascimento, form.dataRegistro)}</span>
+              <div className="bg-primary-50 dark:bg-primary-900/30 p-3 rounded-md border border-primary-200 dark:border-primary-800 flex justify-between items-center">
+                <span className="text-sm text-primary-700 dark:text-primary-300">Categoria calculada para esta data:</span>
+                <span className="font-bold text-primary-800 dark:text-primary-200">{calcularCategoria(form.dataNascimento, form.dataRegistro)}</span>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modo/Evento</label>
-                <select required className="w-full p-2 border rounded-lg bg-white" value={form.modo} onChange={e => setForm({...form, modo: e.target.value})}>
-                  <option value="">Selecione</option>
-                  {MODOS.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Gênero</label>
+                  <select className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100" value={form.genero} onChange={e => setForm({...form, genero: e.target.value})}>
+                    <option value="">Selecione</option>
+                    <option value="M">M</option>
+                    <option value="F">F</option>
+                    <option value="O">O</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Estilo</label>
+                  <select
+                    required
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
+                    value={form.estilo}
+                    onChange={e => {
+                      const novoEstilo = e.target.value;
+                      const provasDoEstilo = PROVAS_POR_ESTILO[novoEstilo] || [];
+                      const provaAtualValida = provasDoEstilo.includes(form.prova);
+                      setForm({
+                        ...form,
+                        estilo: novoEstilo,
+                        prova: provaAtualValida ? form.prova : ''
+                      });
+                    }}
+                  >
+                    <option value="">Selecione</option>
+                    {ESTILOS.map(e => <option key={e} value={e}>{e}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Prova</label>
+                  <select
+                    required
+                    className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100 disabled:bg-gray-50 dark:disabled:bg-gray-800 disabled:text-gray-500 dark:disabled:text-gray-400"
+                    value={form.prova}
+                    onChange={e => setForm({...form, prova: e.target.value})}
+                    disabled={!form.estilo}
+                  >
+                    <option value="">{form.estilo ? 'Selecione' : 'Selecione o estilo primeiro'}</option>
+                    {provasDisponiveisForm.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Tempo</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="000000 ou 00:00.00"
+                    className={`w-full px-3 py-1.5 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100 ${tempoInvalidoNoForm ? 'border-red-500 animate-shake' : 'border-gray-300 dark:border-gray-600'}`}
+                    value={form.tempo}
+                    onChange={handleTempoChange}
+                    onBlur={() => setForm(prev => ({ ...prev, tempo: normalizeTempoInput(prev.tempo) }))}
+                  />
+                  {tempoInvalidoNoForm && (
+                    <p className="mt-1 text-xs text-red-600 dark:text-red-400">Tempo inválido (segundos devem ficar entre 00 e 59).</p>
+                  )}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Gênero</label>
-                <select className="w-full p-2 border rounded-lg bg-white" value={form.genero} onChange={e => setForm({...form, genero: e.target.value})}>
-                  <option value="">Selecione</option>
-                  <option value="M">M</option>
-                  <option value="F">F</option>
-                  <option value="O">O</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Estilo</label>
-                <select
-                  required
-                  className="w-full p-2 border rounded-lg bg-white"
-                  value={form.estilo}
-                  onChange={e => {
-                    const novoEstilo = e.target.value;
-                    const provasDoEstilo = PROVAS_POR_ESTILO[novoEstilo] || [];
-                    const provaAtualValida = provasDoEstilo.includes(form.prova);
-                    setForm({
-                      ...form,
-                      estilo: novoEstilo,
-                      prova: provaAtualValida ? form.prova : ''
-                    });
-                  }}
-                >
-                  <option value="">Selecione</option>
-                  {ESTILOS.map(e => <option key={e} value={e}>{e}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prova</label>
-                <select
-                  required
-                  className="w-full p-2 border rounded-lg bg-white"
-                  value={form.prova}
-                  onChange={e => setForm({...form, prova: e.target.value})}
-                  disabled={!form.estilo}
-                >
-                  <option value="">{form.estilo ? 'Selecione' : 'Selecione o estilo primeiro'}</option>
-                  {provasDisponiveisForm.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tempo</label>
-                <input
-                  required
-                  type="text"
-                  placeholder="000000 ou 00:00.00"
-                  className={`w-full p-2 border rounded-lg ${tempoInvalidoNoForm ? 'border-red-500 ring-1 ring-red-200' : ''}`}
-                  value={form.tempo}
-                  onChange={handleTempoChange}
-                  onBlur={() => setForm(prev => ({ ...prev, tempo: normalizeTempoInput(prev.tempo) }))}
-                />
-                {tempoInvalidoNoForm && (
-                  <p className="mt-1 text-xs text-red-600">Tempo inválido (segundos devem ficar entre 00 e 59).</p>
-                )}
-              </div>
-
-              <div className="col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t">
-                <button type="button" onClick={fecharModal} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancelar</button>
-                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">Salvar Registro</button>
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <button type="button" onClick={fecharModal} className="border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md transition-colors px-4 py-2 text-sm font-medium">Cancelar</button>
+                <button type="submit" className="bg-primary-600 hover:bg-primary-700 text-white rounded-md transition-colors px-6 py-2 text-sm font-medium">Salvar Registro</button>
               </div>
             </form>
           </div>

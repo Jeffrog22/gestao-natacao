@@ -104,13 +104,13 @@ export default function Graficos({ alunos, registros }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-bold text-gray-800">Gráficos Comparativos</h2>
-        <p className="text-sm text-gray-500 mt-1">Selecione 2-3 alunos para comparar (máximo 3)</p>
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">Gráficos Comparativos</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Selecione 2-3 alunos para comparar (máximo 3)</p>
       </div>
 
       {/* Seleção de alunos */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <label className="block text-xs font-semibold text-gray-500 mb-2">Alunos (clique para selecionar, max 3)</label>
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700">
+        <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Alunos (clique para selecionar, max 3)</label>
         <div className="flex flex-wrap gap-2">
           {alunos.filter(a => a.status === 'ativo').slice(0, 30).map(aluno => {
             const selecionado = alunosSelecionados.includes(aluno.nome);
@@ -119,10 +119,10 @@ export default function Graficos({ alunos, registros }) {
               <button
                 key={aluno.id}
                 onClick={() => toggleAluno(aluno.nome)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                   selecionado
                     ? 'text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
                 style={selecionado ? { backgroundColor: CORES[idx] || CORES[0] } : undefined}
               >
@@ -134,11 +134,11 @@ export default function Graficos({ alunos, registros }) {
       </div>
 
       {/* Filtros de prova/estilo */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex gap-4 items-end">
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700 flex gap-4 items-end">
         <div className="w-40">
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Estilo</label>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Estilo</label>
           <select
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
             value={estiloFiltro}
             onChange={e => { setEstiloFiltro(e.target.value); setProvaFiltro(''); }}
           >
@@ -147,9 +147,9 @@ export default function Graficos({ alunos, registros }) {
           </select>
         </div>
         <div className="w-40">
-          <label className="block text-xs font-semibold text-gray-500 mb-1">Prova</label>
+          <label className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">Prova</label>
           <select
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm"
+            className="w-full px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-gray-100"
             value={provaFiltro}
             onChange={e => setProvaFiltro(e.target.value)}
           >
@@ -160,7 +160,7 @@ export default function Graficos({ alunos, registros }) {
       </div>
 
       {alunosSelecionados.length < 2 ? (
-        <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center text-gray-400">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700 text-center text-gray-400 dark:text-gray-500">
           Selecione pelo menos 2 alunos para ver os gráficos
         </div>
       ) : (
@@ -198,9 +198,9 @@ function GraficoLinha({ dados, cores, alunos }) {
 
   if (todosPontos.length === 0) {
     return (
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-600 mb-3">Evolução Temporal</h3>
-        <div className="text-center text-gray-400 py-12">Sem dados para os filtros selecionados</div>
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Evolução Temporal</h3>
+        <div className="text-center text-gray-400 dark:text-gray-500 py-12">Sem dados para os filtros selecionados</div>
       </div>
     );
   }
@@ -230,13 +230,13 @@ function GraficoLinha({ dados, cores, alunos }) {
   const yTickValues = Array.from({ length: yTicks + 1 }, (_, i) => segMin + (segMax - segMin) * (i / yTicks));
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-      <h3 className="text-sm font-semibold text-gray-600 mb-3">Evolução Temporal</h3>
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700">
+      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Evolução Temporal</h3>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full">
         {/* Grid lines */}
         {yTickValues.map((v, i) => (
           <g key={i}>
-            <line x1={PADDING.left} y1={PADDING.top + scaleY(v)} x2={WIDTH - PADDING.right} y2={PADDING.top + scaleY(v)} stroke="#e5e7eb" strokeWidth="1" />
+            <line x1={PADDING.left} y1={PADDING.top + scaleY(v)} x2={WIDTH - PADDING.right} y2={PADDING.top + scaleY(v)} stroke="#e5e7eb" strokeWidth="1" className="dark:stroke-gray-700" />
             <text x={PADDING.left - 8} y={PADDING.top + scaleY(v) + 4} textAnchor="end" fontSize="10" fill="#9ca3af">{segundosParaTempo(v)}</text>
           </g>
         ))}
@@ -304,9 +304,9 @@ function GraficoBarras({ dados, cores, alunos }) {
 
   if (provas.length === 0 || todosSeg.length === 0) {
     return (
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-600 mb-3">Melhor Tempo por Prova</h3>
-        <div className="text-center text-gray-400 py-12">Sem dados para os filtros selecionados</div>
+      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700">
+        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Melhor Tempo por Prova</h3>
+        <div className="text-center text-gray-400 dark:text-gray-500 py-12">Sem dados para os filtros selecionados</div>
       </div>
     );
   }
@@ -324,13 +324,13 @@ function GraficoBarras({ dados, cores, alunos }) {
   const yTickValues = Array.from({ length: yTicks + 1 }, (_, i) => (segMax / yTicks) * i);
 
   return (
-    <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-      <h3 className="text-sm font-semibold text-gray-600 mb-3">Melhor Tempo por Prova</h3>
+    <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm dark:shadow-black/20 border border-gray-200 dark:border-gray-700">
+      <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-400 mb-3">Melhor Tempo por Prova</h3>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full">
         {/* Grid lines */}
         {yTickValues.map((v, i) => (
           <g key={i}>
-            <line x1={PADDING.left} y1={PADDING.top + scaleY(v)} x2={WIDTH - PADDING.right} y2={PADDING.top + scaleY(v)} stroke="#e5e7eb" strokeWidth="1" />
+            <line x1={PADDING.left} y1={PADDING.top + scaleY(v)} x2={WIDTH - PADDING.right} y2={PADDING.top + scaleY(v)} stroke="#e5e7eb" strokeWidth="1" className="dark:stroke-gray-700" />
             <text x={PADDING.left - 8} y={PADDING.top + scaleY(v) + 4} textAnchor="end" fontSize="10" fill="#9ca3af">{segundosParaTempo(v)}</text>
           </g>
         ))}
